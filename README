@@ -1,0 +1,88 @@
+
+This is PLT tool to use for number of tasks which all related to
+TI driver wl12xx.
+
+
+--- Build procedure
+Make sure your kernel is configured to support nl80211 testmode commands.
+(NL80211_TESTMODE=y)
+There is dependents on libnl package.
+
+Set follow environment variables:
+export NFSROOT=<path to roofs of a targer where libnl installed>
+export CROSS_COMPILE=arm-none-linux-gnueabi-
+make
+
+This is build the PLT utility binary.
+
+--- Running PLT utility
+
+While booting the system do not start wireless device interface.
+Make sure it is down, by running command: `ifconfig'.
+
+	TxBip procedure
+
+It is importand to set MAC address to an interface before the procedure.
+For example, `ifconfig wlan0 hw ether xx:xx:xx:xx:xx:xx'
+There are 2 ways to do it - short where all parameters has default values and
+full where you have to set all parameters manualy.
+
+Short way:
+calibrator plt calibrate
+
+Full way:
+calibrator wlan0 plt power_mode on
+calibrator wlan0 plt ref_point <voltage> <power> <subband>
+calibrator wlan0 plt tx_bip <0|1> <0|1> <0|1> <0|1> <0|1> <0|1> <0|1> <0|1>
+calibrator wlan0 plt power_mode off
+
+Result of this procedure is new NVS file created localy ./new-nvs.bin
+In order to use it, copy the file to /lib/firmware/wl1271-nvs.bin and reload.
+
+	TxCont procedure
+
+calibrator wlan0 plt power_mode on
+calibrator wlan0 plt tune_channel <band> <channel>
+calibrator wlan0 plt tx_cont <delay> <rate> <size> <amount> <power> <seed> <pkt mode> <DC on/off> <gi> <preamble> <type> <scramble> <clpc> <seq nbr mode> <dest mac>
+calibrator wlan0 plt tx_stop
+calibrator wlan0 plt power_mode off
+
+	RxStat procedure
+
+There are 2 ways to do it - short where all parameters has default values and
+full where you have to set all parameters manualy.
+
+Short way:
+calibrator plt rx_statistics
+
+In the short way each time the statistics will be reseted.
+
+Full way:
+calibrator wlan0 plt power_mode on
+calibrator wlan0 plt start_rx_statcs
+calibrator wlan0 plt get_rx_statcs
+calibrator wlan0 plt stop_rx_statcs
+calibrator wlan0 plt power_mode off
+
+While willing to reset the statistic run:
+calibrator wlan0 plt reset_rx_statcs
+
+	Miscelanious procedures
+
+Read MAC address from NVS file:
+calibrator get nvs_mac <nvs filename>
+
+Set MAC address in NVS file:
+calibrator set nvs_mac <mac addr xx:xx:xx:xx:xx:xx> <nvs file>
+
+Push local NVS to the system:
+calibrator phy <phyname> set push_nvs <nvs filename>
+
+
+-------------------------------------------------------------------------------
+
+PLT is currently maintained at TI's git,
+some more documentation will be available.
+
+Please send all patches to Gery Kahn <geryk@ti.com>
+and CC linux-wireless@vger.kernel.org for community review.
