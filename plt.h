@@ -287,6 +287,7 @@ struct wl1271_radio_rx_statcs {
 	__le32 nbr_pkts; /* input/output: number of following packets */
 	__le32 nbr_miss_pkts;
 	__le16 radio_status;
+	unsigned char padding[2];
 } __attribute__((packed));
 
 enum wl1271_nvs_type {

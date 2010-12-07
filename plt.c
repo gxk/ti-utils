@@ -457,19 +457,14 @@ static int display_rx_statcs(struct nl_msg *msg, void *arg)
 		(struct wl1271_radio_rx_statcs *)
 			nla_data(td[WL1271_TM_ATTR_DATA]);
 
-	printf("\tNbr of rx valid pkts = (%d)\n\tNbr of rx FCS err pkts = (%d)"
-		"\n\tNbr of addr miss pkts = (%d)\n\tSeq nbr miss cnt = (%d)"
-		"\n\tAverage SNR = (%d)\n\tAverage RSSI = (%d)"
-		"\n\tBase pkt Id = (%d)\n\tNbr of pkts = (%d)"
-		"\n\tNbr of missed pkts = (%d)\n",
-		prms->rx_path_statcs.nbr_rx_valid_pkts,
+	printf("\n\tTotal number of pkts\t- %d\n\tAccepted pkts\t\t- %d\n\t"
+		"FCS error pkts\t\t- %d\n\tAddress mismatch pkts\t- %d\n\t"
+		"Average SNR\t\t- % d dBm\n\tAverage RSSI\t\t- % d dBm\n\n",
+		prms->base_pkt_id, prms->rx_path_statcs.nbr_rx_valid_pkts,
 		prms->rx_path_statcs.nbr_rx_fcs_err_pkts,
 		prms->rx_path_statcs.nbr_rx_plcp_err_pkts,
-		prms->rx_path_statcs.seq_nbr_miss_cnt,
-		prms->rx_path_statcs.ave_snr/8,
-		prms->rx_path_statcs.ave_rssi/8,
-		prms->base_pkt_id, prms->nbr_pkts, prms->nbr_miss_pkts
-	);
+		(signed short)prms->rx_path_statcs.ave_snr/8,
+		(signed short)prms->rx_path_statcs.ave_rssi/8);
 
 	return NL_SKIP;
 }
@@ -478,7 +473,7 @@ static int plt_get_rx_statcs(struct nl80211_state *state, struct nl_cb *cb,
 			struct nl_msg *msg, int argc, char **argv)
 {
 	struct nlattr *key;
-	struct wl1271_cmd_pkt_params prms;
+	struct wl1271_radio_rx_statcs prms;
 
 	prms.test.id = TEST_CMD_RX_STAT_GET;
 
