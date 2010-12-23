@@ -13,7 +13,9 @@ OBJS = nvs.o misc_cmds.o calibrator.o plt.o ini.o
 
 all: $(OBJS)
 	$(CC) $(LDFLAGS) $(OBJS) $(LIBS) -o calibrator
-	@echo -e "\n\tMake sure to use reference-nvs.bin if needed\n"
+
+install:
+	@cp -f ./calibrator $(NFSROOT)
 
 clean:
 	@rm -f *.o calibrator

@@ -1,26 +1,43 @@
 
-This is PLT tool to use for number of tasks which all related to
-TI driver wl12xx.
+The calibrator and other useful utilities for TI wireless solution,
+based on wl12xx driver.
 
 
 --- Build procedure
+
 Make sure your kernel is configured to support nl80211 testmode commands.
 (NL80211_TESTMODE=y)
 There is dependents on libnl package.
 
 Set follow environment variables:
-export NFSROOT=<path to roofs of a targer where libnl installed>
+export NFSROOT=<path to roofs of a target where installed libnl library>
 export CROSS_COMPILE=arm-none-linux-gnueabi-
 make
 
-This is build the PLT utility binary.
 
 --- Running PLT utility
 
-While booting the system do not start wireless device interface.
-Make sure it is down, by running command: `ifconfig'.
+1. Have to prepare NVS reference file
+	a. Boot the system
+	b. Create NVS reference file
+		./calibrator set ref_nvs ./<ini file>
+	c. Copy newly created NVS file to the proper place:
+		cp new-nvs.bin /lib/firmware/wl1271-nvs.bin
+2. Calibrate the system
+	a. Reboot the system
+		While booting the system do not start wireless device
+		interface. Make sure it is down, by running 
+		command: `ifconfig'.
+	b. Calibrate
+		./calibrator plt calibrate
+	c. Copy newly created file to the proper place
+		cp new-nvs.bin /lib/firmware/wl1271-nvs.bin
+3. Reboot the system
 
-	TxBip procedure
+
+--- Detailed instructions for calibrator procedures
+
+	TxBip procedure (calibration)
 
 It is importand to set MAC address to an interface before the procedure.
 For example, `ifconfig wlan0 hw ether xx:xx:xx:xx:xx:xx'
@@ -81,8 +98,9 @@ calibrator phy <phyname> set push_nvs <nvs filename>
 
 -------------------------------------------------------------------------------
 
-PLT is currently maintained at TI's git,
-some more documentation will be available.
+The project can be accessed from git repository:
+	git clone git://github.com/gxk/ti-utils.git
 
 Please send all patches to Gery Kahn <geryk@ti.com>
 and CC linux-wireless@vger.kernel.org for community review.
+
