@@ -24,7 +24,7 @@
 
 #include "calibrator.h"
 #include "plt.h"
-#include "nvs_dual_band.h"
+#include "ini.h"
 
 static const char if_name_fmt[] = "wlan%d";
 
@@ -113,7 +113,7 @@ static int fill_nvs_def_rx_params(int fd)
 	write(fd, &length, 2);
 
 	type = DEFAULT_EFUSE_VALUE; /* just reuse of var */
-	for (i = 0; i < length; i++)
+	for (i = 0; i < NVS_RX_PARAM_LENGTH; i++)
 		write(fd, &type, 1);
 
 	return 0;
@@ -200,15 +200,22 @@ static int nvs_fill_old_rx_data(int fd, const unsigned char *buf,
 	return 0;
 }
 
-static int nvs_fill_radio_params(int fd)
+static int nvs_fill_radio_params(int fd, struct wl1271_ini *ini, char *buf)
 {
-	int cnt;
-	unsigned char *p = (unsigned char *)nvs_rdio_prms_dual_band;
+	int size;
 
-	cnt = sizeof(nvs_rdio_prms_dual_band) /
-		sizeof(nvs_rdio_prms_dual_band[0]);
+	size  = sizeof(struct wl1271_ini);
 
-	write(fd, nvs_rdio_prms_dual_band, cnt);
+	if (ini) {	/* for reference NVS */
+		unsigned char *c = (unsigned char *)ini;
+		int i;
+
+		for (i = 0; i < size; i++)
+			write(fd, c++, 1);
+	} else {
+		unsigned char *p = buf + 0x1D4;
+		write(fd, p, size);
+	}
 
 	return 0;
 }
@@ -234,7 +241,7 @@ static int nvs_fill_version(int fd, struct wl1271_cmd_cal_p2g *pdata)
 	return 0;
 }
 
-int prepare_nvs_file(void *arg)
+int prepare_nvs_file(void *arg, struct wl1271_ini *ini)
 {
 	int new_nvs, i;
 	unsigned char mac_addr[MAC_ADDR_LEN];
@@ -296,18 +303,23 @@ int prepare_nvs_file(void *arg)
 	/* Fill TxBip */
 	pdata = (struct wl1271_cmd_cal_p2g *)arg;
 
-	write(new_nvs, &vals[6], 1); /* eNVS_RADIO_TX_PARAMETERS */
-
+	write(new_nvs, &vals[6], 1);
 	write(new_nvs, &pdata->len, 2);
 
 	p = (unsigned char *)&(pdata->buf);
 	for (i = 0; i < pdata->len; i++)
 		write(new_nvs, p++, 1);
 
-	/* fill RxBip */
-	if (read_from_current_nvs(buf, 1024)) { /* unable to read - put defs */
+	/* 2048 - it should be enough for any chip, until... 22dec2010 */
+	/* must to return, because anyway need
+	 * the radio parameters from old NVS */
+	if (read_from_current_nvs(buf, 2048))
+		return 1;
+
+
+	if (ini)
 		fill_nvs_def_rx_params(new_nvs);
-	} else {
+	else {
 		unsigned int old_ver;
 #if 0
 		{
@@ -341,7 +353,7 @@ int prepare_nvs_file(void *arg)
 	write(new_nvs, &vals[0], 1);
 
 	/* fill radio params */
-	if (nvs_fill_radio_params(new_nvs))
+	if (nvs_fill_radio_params(new_nvs, ini, buf))
 		printf("Fail to fill radio params\n");
 
 	close(new_nvs);

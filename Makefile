@@ -6,7 +6,7 @@ CFLAGS += -I$(NFSROOT)/include
 LDFLAGS += -L$(NFSROOT)/lib
 LIBS += -lnl -lnl-genl -lm
 
-OBJS = nvs.o misc_cmds.o calibrator.o plt.o
+OBJS = nvs.o misc_cmds.o calibrator.o plt.o ini.o
 
 %.o: %.c calibrator.h nl80211.h plt.h nvs_dual_band.h
 	$(CC) $(CFLAGS) -c -o $@ $<

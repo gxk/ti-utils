@@ -9,6 +9,7 @@
 
 #include "calibrator.h"
 #include "plt.h"
+#include "ini.h"
 
 SECTION(get);
 SECTION(set);
@@ -193,3 +194,37 @@ static int set_nvs_mac(struct nl80211_state *state, struct nl_cb *cb,
 COMMAND(set, nvs_mac, "<mac addr> <nvs file>", 0, 0, CIB_NONE, set_nvs_mac,
 	"Set MAC addr in NVS file (offline), like XX:XX:XX:XX:XX:XX");
 
+static int set_ref_nvs(struct nl80211_state *state, struct nl_cb *cb,
+			struct nl_msg *msg, int argc, char **argv)
+{
+	struct wl1271_cmd_cal_p2g placeholder;
+	struct wl1271_ini ini;
+
+	argc -= 2;
+	argv += 2;
+
+	if (argc != 1)
+		return 1;
+
+	if (read_ini(*argv, &ini)) {
+		fprintf(stderr, "Fail to read ini file\n");
+		return 1;
+	}
+
+	memset(&placeholder, 0, sizeof(struct wl1271_cmd_cal_p2g));
+
+	placeholder.len = NVS_TX_PARAM_LENGTH;
+	if (prepare_nvs_file(&placeholder, &ini)) {
+		fprintf(stderr, "Fail to prepare new NVS file\n");
+		return 1;
+	}
+
+	printf("\n\tThe NVS file (%s) is ready\n\tCopy it to %s and "
+		"reboot the system\n\n",
+		NEW_NVS_NAME, CURRENT_NVS_NAME);
+
+	return 0;
+}
+
+COMMAND(set, ref_nvs, "<ini file>", 0, 0, CIB_NONE, set_ref_nvs,
+	"Create reference NVS file");

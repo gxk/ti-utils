@@ -92,7 +92,8 @@
 (NUMBER_OF_RADIO_CHANNEL_INDEXS_E /* for Per Channel power Gain Offset tabl */))
 
 /* NVS TX version */
-#define NVS_TX_PARAM_LENGTH     NVS_TX_PARAM_LENGTH_NVS_V2
+/* #define NVS_TX_PARAM_LENGTH     NVS_TX_PARAM_LENGTH_NVS_V2 */
+#define NVS_TX_PARAM_LENGTH     0x199
 
 /* NVS RX version */
 #define NVS_RX_PARAM_LENGTH	NUMBER_OF_RX_BIP_EFUSE_PARAMETERS_E /* 19 */

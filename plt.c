@@ -173,6 +173,12 @@ static int calib_valid_handler(struct nl_msg *msg, void *arg)
 		nla_len(tb[NL80211_ATTR_TESTDATA]), NULL);
 
 	prms = (struct wl1271_cmd_cal_p2g *)nla_data(td[WL1271_TM_ATTR_DATA]);
+
+	if (prms->radio_status) {
+		fprintf(stderr, "Fail to calibrate ith radio status (%d)\n",
+			(signed short)prms->radio_status);
+		return 2;
+	}
 #if 0
 	printf("%s> id %04x status %04x\ntest id %02x ver %08x len %04x=%d\n",
 		__func__,
@@ -190,7 +196,7 @@ static int calib_valid_handler(struct nl_msg *msg, void *arg)
 		}
 		printf("++++++++++++++++++++++++\n");
 #endif
-	if (prepare_nvs_file(prms)) {
+	if (prepare_nvs_file(prms, NULL)) {
 		fprintf(stderr, "Fail to prepare new NVS file\n");
 		return 2;
 	}
@@ -312,7 +318,7 @@ COMMAND(plt, tx_cont, "<delay> <rate> <size> <amount> <power>\n\t\t<seed> "
 	"<pkt mode> <DC on/off> <gi> <preamble>\n\t\t<type> <scramble> "
 	"<clpc> <seq nbr mode> <dest mac>",
 	NL80211_CMD_TESTMODE, 0, CIB_NETDEV, plt_tx_cont,
-	"Do calibrate.\n");
+	"Start Tx Cont\n");
 
 static int plt_tx_stop(struct nl80211_state *state, struct nl_cb *cb,
 			struct nl_msg *msg, int argc, char **argv)
@@ -342,7 +348,7 @@ nla_put_failure:
 
 COMMAND(plt, tx_stop, NULL,
 	NL80211_CMD_TESTMODE, 0, CIB_NETDEV, plt_tx_stop,
-	"Do calibrate.\n");
+	"Stop Tx Cont\n");
 
 static int plt_start_rx_statcs(struct nl80211_state *state, struct nl_cb *cb,
 			struct nl_msg *msg, int argc, char **argv)
@@ -372,7 +378,7 @@ nla_put_failure:
 
 COMMAND(plt, start_rx_statcs, NULL,
 	NL80211_CMD_TESTMODE, 0, CIB_NETDEV, plt_start_rx_statcs,
-	"Do calibrate.\n");
+	"Start Rx statistics collection\n");
 
 static int plt_stop_rx_statcs(struct nl80211_state *state, struct nl_cb *cb,
 			struct nl_msg *msg, int argc, char **argv)
@@ -402,7 +408,7 @@ nla_put_failure:
 
 COMMAND(plt, stop_rx_statcs, NULL,
 	NL80211_CMD_TESTMODE, 0, CIB_NETDEV, plt_stop_rx_statcs,
-	"Do calibrate.\n");
+	"Stop Rx statistics collection\n");
 
 static int plt_reset_rx_statcs(struct nl80211_state *state, struct nl_cb *cb,
 			struct nl_msg *msg, int argc, char **argv)
@@ -432,7 +438,7 @@ nla_put_failure:
 
 COMMAND(plt, reset_rx_statcs, NULL,
 	NL80211_CMD_TESTMODE, 0, CIB_NETDEV, plt_reset_rx_statcs,
-	"Do calibrate.\n");
+	"Reset Rx statistics collection\n");
 
 static int display_rx_statcs(struct nl_msg *msg, void *arg)
 {
@@ -503,7 +509,7 @@ nla_put_failure:
 
 COMMAND(plt, get_rx_statcs, NULL,
 	NL80211_CMD_TESTMODE, 0, CIB_NETDEV, plt_get_rx_statcs,
-	"Do calibrate.\n");
+	"Get Rx statistics\n");
 
 static int plt_rx_statistics(struct nl80211_state *state, struct nl_cb *cb,
 			struct nl_msg *msg, int argc, char **argv)
@@ -577,17 +583,23 @@ fail_out:
 }
 
 COMMAND(plt, rx_statistics, NULL, 0, 0, CIB_NONE, plt_rx_statistics,
-	"To get Rx statistics.\n");
+	"Get Rx statistics\n");
 
 static int plt_calibrate(struct nl80211_state *state, struct nl_cb *cb,
 			struct nl_msg *msg, int argc, char **argv)
 {
 	int ret;
+	int single_dual;
+
+	if (argc == 3 && (strncmp(argv[2], "dual", 4) ==  0))
+		single_dual = 1;	/* going for dual band calibration */
+	else
+		single_dual = 0;	/* going for single band calibration */
 
 	/* power mode on */
 	{
 		int err;
-		char *pm_on[4] = { "wlan0", "plt", "power_mode", "on"};
+		char *pm_on[4] = { "wlan0", "plt", "power_mode", "on" };
 
 		err = handle_cmd(state, II_NETDEV, 4, pm_on);
 		if (err < 0) {
@@ -596,6 +608,21 @@ static int plt_calibrate(struct nl80211_state *state, struct nl_cb *cb,
 		}
 	}
 
+	/* tune channel */
+	{
+		int err;
+		char *pm_on[5] = {
+			"wlan0", "plt", "tune_channel", "0", "7"
+		};
+
+		err = handle_cmd(state, II_NETDEV, 5, pm_on);
+		if (err < 0) {
+			fprintf(stderr, "Fail to tune channel\n");
+			ret = err;
+			goto fail_out;
+		}
+	}
+#if 0
 	/* reference point */
 	{
 		int err;
@@ -610,7 +637,7 @@ static int plt_calibrate(struct nl80211_state *state, struct nl_cb *cb,
 			goto fail_out;
 		}
 	}
-
+#endif
 	/* calibrate off */
 	{
 		int err;
@@ -618,6 +645,12 @@ static int plt_calibrate(struct nl80211_state *state, struct nl_cb *cb,
 			"wlan0", "plt", "tx_bip", "1", "0", "0", "0",
 			"0", "0", "0", "0"
 		};
+
+		/* set flags in case of dual band */
+		if (single_dual) {
+			prms[4] = prms[5] = prms[6] = prms[7] = prms[8] =
+				prms[9] = prms[10] = "1";
+		}
 
 		err = handle_cmd(state, II_NETDEV, 11, prms);
 		if (err < 0) {
@@ -645,4 +678,5 @@ fail_out:
 	return 0;
 }
 
-COMMAND(plt, calibrate, NULL, 0, 0, CIB_NONE, plt_calibrate, "Do calibrate.\n");
+COMMAND(plt, calibrate, "[<single|dual>]", 0, 0, CIB_NONE,
+	plt_calibrate, "Do calibrate for single or dual band chip\n");

@@ -23,6 +23,7 @@
 #include "nl80211.h"
 #include "calibrator.h"
 #include "plt.h"
+#include "ini.h"
 
 char calibrator_version[] = "Prima versione";
 #ifndef CONFIG_LIBNL20
