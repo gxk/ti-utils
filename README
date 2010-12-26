@@ -34,6 +34,23 @@ make
 		cp new-nvs.bin /lib/firmware/wl1271-nvs.bin
 3. Reboot the system
 
+--- INI files
+
+It is very important to select INI file according to the firmware (see below).
+
+Those files organized in 3 directories:
+station - currently supported station firmware (wl1271-fw.bin)
+access_point - currently supported access point (wl1271-fw-ap.bin)
+development - files for firmware under release stage 
+
+--- Firmware files
+
+The firmware files can be reached from git repository
+git://git.kernel.org/pub/scm/linux/kernel/git/dwmw2/linux-firmware.git
+under directory ti-connectivity.
+There are 2 firmware files there:
+wl1271-fw.bin    - station firmware
+wl1271-fw-ap.bin    - access point firmware
 
 --- Detailed instructions for calibrator procedures
 
