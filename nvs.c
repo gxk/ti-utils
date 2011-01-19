@@ -247,7 +247,7 @@ int prepare_nvs_file(void *arg, struct wl1271_ini *ini)
 	unsigned char mac_addr[MAC_ADDR_LEN];
 	struct wl1271_cmd_cal_p2g *pdata;
 	struct wl1271_cmd_cal_p2g old_data[eNUMBER_RADIO_TYPE_PARAMETERS_INFO];
-	unsigned char buf[1024];
+	unsigned char buf[2048];
 	unsigned char *p;
 	const unsigned char vals[] = {
 		0x0, 0x1, 0x6d, 0x54, 0x71, eTLV_LAST, eNVS_RADIO_TX_PARAMETERS
@@ -313,9 +313,10 @@ int prepare_nvs_file(void *arg, struct wl1271_ini *ini)
 	/* 2048 - it should be enough for any chip, until... 22dec2010 */
 	/* must to return, because anyway need
 	 * the radio parameters from old NVS */
-	if (read_from_current_nvs(buf, 2048))
+	if (read_from_current_nvs(buf, 2048)) {
+		close(new_nvs);
 		return 1;
-
+	}
 
 	if (ini)
 		fill_nvs_def_rx_params(new_nvs);
@@ -360,4 +361,3 @@ int prepare_nvs_file(void *arg, struct wl1271_ini *ini)
 
 	return 0;
 }
-

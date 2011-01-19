@@ -81,6 +81,45 @@ calibrator wlan0 plt tx_cont <delay> <rate> <size> <amount> <power> <seed> <pkt 
 calibrator wlan0 plt tx_stop
 calibrator wlan0 plt power_mode off
 
+Description: This test sends packets of data directly to air. It receives 
+several parameters as described bellow, to enable diversity of
+operational modes.
+It is mostly used to see Energy and radio impact on Air.
+Content of Packet can be Random, or Zero, One, Zero, one...
+Packets send are configurable in the following aspects:
+  Delay between packets in microseconds
+  Rate
+    1 Mbps -   0x00000001       MCS_0 - 0x00002000
+    2 Mbps -   0x00000002       MCS_1 - 0x00004000
+    5.5 Mbps - 0x00000004       MCS_2 - 0x00008000
+    6 Mbps -   0x00000008       MCS_3 - 0x00010000
+    9 Mbps -   0x00000010       MCS_4 - 0x00020000
+    11 Mbps -  0x00000020       MCS_5 - 0x00040000
+    12 Mbps -  0x00000040       MCS_6 - 0x00080000
+    18 Mbps -  0x00000080       MCS_7 - 0x00100000
+    24 Mbps -  0x00000200
+    36 Mbps -  0x00000400
+    48 Mbps -  0x00000800
+    54 Mbps -  0x00001000
+  Size of data field in MPDU (in bytes, 0 - 2284)
+  Amount - number of packets in case of using series mode
+  Power - output power in dBm*1000
+  Seed - value for the scrambler
+  Packet mode - 0-single, 1-multipile, 3-continuos, 4-FCC
+  DC on/off - activate DCF
+  gi - guard interval on/off for 11n rates
+  Preamble
+    1 Mbps - long preamble mode=0
+    2, 5.5, 11 Mbps - long preamble mode=0, short preamble mode=1
+    6, 9, 12, 18, 24, 36, 48, 54 Mbps - ofdm preamble mode=4
+    from MCS_0 to MCS_7 - n mixed mode preamble mode=6, greenfield preamble mode=7
+  Type is 0-data packet, 1-ack, 2-probe req, 3-random data, 4-user data
+  Scrambler - on/off
+  CLPC
+    range 0-100 is disable calibration
+  Sequence number mode (incremented or fixed)
+  Destination Mac address
+
 	RxStat procedure
 
 There are 2 ways to do it - short where all parameters has default values and

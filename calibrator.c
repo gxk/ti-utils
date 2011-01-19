@@ -25,7 +25,7 @@
 #include "plt.h"
 #include "ini.h"
 
-char calibrator_version[] = "Prima versione";
+char calibrator_version[] = "0.2";
 #ifndef CONFIG_LIBNL20
 /* libnl 2.0 compatibility code */
 

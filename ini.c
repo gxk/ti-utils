@@ -541,22 +541,42 @@ static void ini_dump(struct wl1271_ini *ini)
 	printf("\n");
 
 	printf("Static 2.4 band params:\n");
-	printf("%02X %02X",
+
+	printf("rx trace insertion loss: %02X\n",
 		ini->stat_radio_params_2.rx_trace_insertion_loss);
+
+	printf("rx rssi n process compensation:");
 	for (i = 0; i < WL1271_INI_RSSI_PROCESS_COMPENS_SIZE; i++)
 		printf(" %02X",
 			ini->stat_radio_params_2.rx_rssi_process_compens[i]);
 	printf("\n");
 
-	printf("Dynamic 2.4 band params for FEM0\n");
+	printf("tx trace: %02X\n",
+		ini->stat_radio_params_2.tx_trace_loss);
 
-	printf("Dynamic 2.4 band params for FEM0\n");
+	printf("Dynamic 2.4 band params for FEM\n");
 
 	printf("Static 5 band params:\n");
 
-	printf("Dynamic 5 band params for FEM0\n");
+	printf("rx trace insertion loss:");
+	for (i = 0; i < WL1271_INI_SUB_BAND_COUNT_5; i++)
+		printf(" %02X",
+			ini->stat_radio_params_5.rx_rssi_process_compens[i]);
+	printf("\n");
 
-	printf("Dynamic 5 band params for FEM0\n");
+	printf("rx rssi n process compensation:");
+	for (i = 0; i < WL1271_INI_RSSI_PROCESS_COMPENS_SIZE; i++)
+		printf(" %02X",
+			ini->stat_radio_params_5.rx_rssi_process_compens[i]);
+	printf("\n");
+
+	printf("tx trace:");
+	for (i = 0; i < WL1271_INI_SUB_BAND_COUNT_5; i++)
+		printf(" %02X",
+			ini->stat_radio_params_5.tx_trace_loss[i]);
+	printf("\n");
+
+	printf("Dynamic 5 band params for FEM\n");
 
 }
 #endif
