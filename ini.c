@@ -171,10 +171,10 @@ static int split_line(char *line, char **name, char **value)
 		return 0;					\
 	}
 
-static int parse_general_prms(char *l,
-	struct wl1271_ini_general_params *gp)
+static int parse_general_prms(char *l, struct wl12xx_ini *p)
 {
 	char *name, *val;
+	struct wl1271_ini_general_params *gp = &(p->ini1271.general_params);
 
 	if (split_line(l, &name, &val))
 		return 1;
@@ -213,10 +213,68 @@ static int parse_general_prms(char *l,
 	return 1;
 }
 
-static int parse_band2_prms(char *l,
-	struct wl1271_ini_band_params_2 *gp)
+static int parse_general_prms_128x(char *l, struct wl12xx_ini *p)
 {
 	char *name, *val;
+	struct wl1271_ini_general_params_wl128x *gp =
+		&(p->ini128x.general_params);
+
+	if (split_line(l, &name, &val))
+		return 1;
+
+	COMPARE_N_ADD("TXBiPFEMAutoDetect", l, val,
+		&gp->tx_bip_fem_auto_detect, 1);
+
+	COMPARE_N_ADD("TXBiPFEMManufacturer", l, val,
+		&gp->tx_bip_fem_manufacturer, 1);
+
+	COMPARE_N_ADD("RefClk", l, val, &gp->ref_clock, 1);
+
+	COMPARE_N_ADD("SettlingTime", l, val, &gp->settling_time, 1);
+
+	COMPARE_N_ADD("ClockValidOnWakeup", l, val,
+		&gp->clk_valid_on_wakeup, 1);
+
+	COMPARE_N_ADD("TCXO_Clk", l, val, &gp->tcxo_ref_clock, 1);
+
+	COMPARE_N_ADD("TCXO_SettlingTime", l, val, &gp->tcxo_settling_time, 1);
+
+	COMPARE_N_ADD("TCXO_ClockValidOnWakeup", l, val,
+		&gp->tcxo_valid_on_wakeup, 1);
+
+	COMPARE_N_ADD("TCXO_LDO_Voltage", l, val,
+		&gp->tcxo_ldo_voltage, 1);
+
+	COMPARE_N_ADD("Platform_configuration", l, val,
+		&gp->platform_conf, 1);
+
+	COMPARE_N_ADD("Single_Dual_Band_Solution", l, val,
+		&gp->dual_mode_select, 1);
+
+	COMPARE_N_ADD("Settings", l, val,
+		gp->general_settings, WL1271_INI_MAX_SETTINGS_PARAM);
+
+	COMPARE_N_ADD("XTALItrimVal", l, val, &gp->xtal_itrim_val, 1);
+
+	COMPARE_N_ADD("SRState", l, val, &gp->sr_state, 1);
+
+	COMPARE_N_ADD("SRF1", l, val,
+		gp->srf1, WL1271_INI_MAX_SMART_REFLEX_PARAM);
+
+	COMPARE_N_ADD("SRF2", l, val,
+		gp->srf2, WL1271_INI_MAX_SMART_REFLEX_PARAM);
+
+	COMPARE_N_ADD("SRF3", l, val,
+		gp->srf3, WL1271_INI_MAX_SMART_REFLEX_PARAM);
+
+	return 1;
+}
+
+static int parse_band2_prms(char *l, struct wl12xx_ini *p)
+{
+	char *name, *val;
+	struct wl1271_ini_band_params_2 *gp =
+		&(p->ini1271.stat_radio_params_2);
 
 	if (split_line(l, &name, &val))
 		return 1;
@@ -234,10 +292,29 @@ static int parse_band2_prms(char *l,
 	return 1;
 }
 
-static int parse_band5_prms(char *l,
-	struct wl1271_ini_band_params_5 *gp)
+static int parse_band2_prms_128x(char *l, struct wl12xx_ini *p)
 {
 	char *name, *val;
+	struct wl1271_ini_band_params_2_wl128x *gp =
+		&(p->ini128x.stat_radio_params_2);
+
+	if (split_line(l, &name, &val))
+		return 1;
+
+	COMPARE_N_ADD("RxTraceInsertionLoss_2_4G", l, val,
+		&gp->rx_trace_insertion_loss, 1);
+
+	COMPARE_N_ADD("TxTraceLoss_2_4G", l, val,
+		gp->tx_trace_loss, WL1271_INI_CHANNEL_COUNT_2);
+
+	return 1;
+}
+
+static int parse_band5_prms(char *l, struct wl12xx_ini *p)
+{
+	char *name, *val;
+	struct wl1271_ini_band_params_5 *gp =
+		&(p->ini1271.stat_radio_params_5);
 
 	if (split_line(l, &name, &val))
 		return 1;
@@ -255,10 +332,29 @@ static int parse_band5_prms(char *l,
 	return 1;
 }
 
-static int parse_fem0_band2_prms(char *l,
-	struct wl1271_ini_fem_params_2 *gp)
+static int parse_band5_prms_128x(char *l, struct wl12xx_ini *p)
 {
 	char *name, *val;
+	struct wl1271_ini_band_params_5_wl128x *gp =
+		&(p->ini128x.stat_radio_params_5);
+
+	if (split_line(l, &name, &val))
+		return 1;
+
+	COMPARE_N_ADD("RxTraceInsertionLoss_5G", l, val,
+		gp->rx_trace_insertion_loss, 7);
+
+	COMPARE_N_ADD("TxTraceLoss_5G", l, val,
+		gp->tx_trace_loss, 7);
+
+	return 1;
+}
+
+static int parse_fem0_band2_prms(char *l, struct wl12xx_ini *p)
+{
+	char *name, *val;
+	struct wl1271_ini_fem_params_2 *gp =
+		&(p->ini1271.dyn_radio_params_2[0].params);
 
 	if (split_line(l, &name, &val))
 		return 1;
@@ -312,10 +408,73 @@ static int parse_fem0_band2_prms(char *l,
 	return 1;
 }
 
-static int parse_fem1_band2_prms(char *l,
-	struct wl1271_ini_fem_params_2 *gp)
+static int parse_fem0_band2_prms_128x(char *l, struct wl12xx_ini *p)
 {
 	char *name, *val;
+	struct wl1271_ini_fem_params_2_wl128x *gp =
+		&(p->ini128x.dyn_radio_params_2[0].params);
+
+	if (split_line(l, &name, &val))
+		return 1;
+
+	COMPARE_N_ADD2("FEM0_TxBiPReferencePDvoltage_2_4G", l, val,
+		&gp->tx_bip_ref_pd_voltage, 1);
+
+	COMPARE_N_ADD("FEM0_TxBiPReferencePower_2_4G", l, val,
+		&gp->tx_bip_ref_power, 1);
+
+	COMPARE_N_ADD("FEM0_TxBiPOffsetdB_2_4G", l, val,
+		&gp->tx_bip_ref_offset, 1);
+
+	COMPARE_N_ADD("FEM0_TxPerRatePowerLimits_2_4G_Normal", l, val,
+		gp->tx_per_rate_pwr_limits_normal,
+		WL1271_INI_RATE_GROUP_COUNT);
+
+	COMPARE_N_ADD("FEM0_TxPerRatePowerLimits_2_4G_Degraded", l, val,
+		gp->tx_per_rate_pwr_limits_degraded,
+		WL1271_INI_RATE_GROUP_COUNT);
+
+	COMPARE_N_ADD("FEM0_TxPerRatePowerLimits_2_4G_Extreme", l, val,
+		gp->tx_per_rate_pwr_limits_extreme,
+		WL1271_INI_RATE_GROUP_COUNT);
+
+	COMPARE_N_ADD("FEM0_DegradedLowToNormalThr_2_4G", l, val,
+		&gp->degraded_low_to_normal_thr, 1);
+
+	COMPARE_N_ADD("FEM0_NormalToDegradedHighThr_2_4G", l, val,
+		&gp->normal_to_degraded_high_thr, 1);
+
+	COMPARE_N_ADD("FEM0_TxPerChannelPowerLimits_2_4G_11b", l, val,
+		gp->tx_per_chan_pwr_limits_11b,
+		WL1271_INI_CHANNEL_COUNT_2);
+
+	COMPARE_N_ADD("FEM0_TxPerChannelPowerLimits_2_4G_OFDM", l, val,
+		gp->tx_per_chan_pwr_limits_ofdm,
+		WL1271_INI_CHANNEL_COUNT_2);
+
+	COMPARE_N_ADD("FEM0_TxPDVsRateOffsets_2_4G", l, val,
+		gp->tx_pd_vs_rate_offsets,
+		WL1271_INI_RATE_GROUP_COUNT);
+
+	COMPARE_N_ADD("FEM0_TxPDVsChannelOffsets_2_4G", l, val,
+		gp->tx_pd_vs_rate_offsets,
+		WL1271_INI_RATE_GROUP_COUNT);
+
+	COMPARE_N_ADD("FEM0_TxIbiasTable_2_4G", l, val,
+		gp->tx_ibias,
+		WL1271_INI_RATE_GROUP_COUNT);
+
+	COMPARE_N_ADD("FEM0_RxFemInsertionLoss_2_4G", l, val,
+		&gp->rx_fem_insertion_loss, 1);
+
+	return 1;
+}
+
+static int parse_fem1_band2_prms(char *l, struct wl12xx_ini *p)
+{
+	char *name, *val;
+	struct wl1271_ini_fem_params_2 *gp =
+		&(p->ini1271.dyn_radio_params_2[1].params);
 
 	if (split_line(l, &name, &val))
 		return 1;
@@ -369,10 +528,69 @@ static int parse_fem1_band2_prms(char *l,
 	return 1;
 }
 
-static int parse_fem1_band5_prms(char *l,
-	struct wl1271_ini_fem_params_5 *gp)
+static int parse_fem1_band2_prms_128x(char *l, struct wl12xx_ini *p)
 {
 	char *name, *val;
+	struct wl1271_ini_fem_params_2_wl128x *gp =
+		&(p->ini128x.dyn_radio_params_2[1].params);
+
+	if (split_line(l, &name, &val))
+		return 1;
+
+	COMPARE_N_ADD2("FEM1_TXBiPReferencePDvoltage_2_4G", l, val,
+		&gp->tx_bip_ref_pd_voltage, 1);
+
+	COMPARE_N_ADD("FEM1_TxBiPReferencePower_2_4G", l, val,
+		&gp->tx_bip_ref_power, 1);
+
+	COMPARE_N_ADD("FEM1_TxBiPOffsetdB_2_4G", l, val,
+		&gp->tx_bip_ref_offset, 1);
+
+	COMPARE_N_ADD("FEM1_TxPerRatePowerLimits_2_4G_Normal", l, val,
+		gp->tx_per_rate_pwr_limits_normal,
+		WL1271_INI_RATE_GROUP_COUNT);
+
+	COMPARE_N_ADD("FEM1_TxPerRatePowerLimits_2_4G_Degraded", l, val,
+		gp->tx_per_rate_pwr_limits_degraded,
+		WL1271_INI_RATE_GROUP_COUNT);
+
+	COMPARE_N_ADD("FEM1_TxPerRatePowerLimits_2_4G_Extreme", l, val,
+		gp->tx_per_rate_pwr_limits_extreme,
+		WL1271_INI_RATE_GROUP_COUNT);
+
+	COMPARE_N_ADD("FEM1_DegradedLowToNormalThr_2_4G", l, val,
+		&gp->degraded_low_to_normal_thr, 1);
+
+	COMPARE_N_ADD("FEM1_NormalToDegradedHighThr_2_4G", l, val,
+		&gp->normal_to_degraded_high_thr, 1);
+
+	COMPARE_N_ADD("FEM1_TxPerChannelPowerLimits_2_4G_11b", l, val,
+		gp->tx_per_chan_pwr_limits_11b,
+		WL1271_INI_CHANNEL_COUNT_2);
+
+	COMPARE_N_ADD("FEM1_TxPerChannelPowerLimits_2_4G_OFDM", l, val,
+		gp->tx_per_chan_pwr_limits_ofdm,
+		WL1271_INI_CHANNEL_COUNT_2);
+
+	COMPARE_N_ADD("FEM1_TxPDVsRateOffsets_2_4G", l, val,
+		gp->tx_pd_vs_rate_offsets,
+		WL1271_INI_RATE_GROUP_COUNT);
+
+	COMPARE_N_ADD("FEM1_TxIbiasTable_2_4G", l, val,
+		gp->tx_ibias,
+		WL1271_INI_RATE_GROUP_COUNT);
+
+	COMPARE_N_ADD("FEM1_RxFemInsertionLoss_2_4G", l, val,
+		&gp->rx_fem_insertion_loss, 1);
+
+	return 1;
+}
+
+static int parse_fem1_band5_prms(char *l, struct wl12xx_ini *p)
+{
+	char *name, *val;
+	struct wl1271_ini_fem_params_5 *gp =
+		&(p->ini1271.dyn_radio_params_5[1].params);
 
 	if (split_line(l, &name, &val))
 		return 1;
@@ -422,53 +640,154 @@ static int parse_fem1_band5_prms(char *l,
 	return 1;
 }
 
-static int find_section(const char *l, enum wl1271_ini_section *st, int *cntr)
+static int parse_fem1_band5_prms_128x(char *l, struct wl12xx_ini *p)
+{
+	char *name, *val;
+	struct wl1271_ini_fem_params_5_wl128x *gp =
+		&(p->ini128x.dyn_radio_params_5[1].params);
+
+	if (split_line(l, &name, &val))
+		return 1;
+
+	COMPARE_N_ADD2("FEM1_TXBiPReferencePDvoltage_5G", l, val,
+		gp->tx_bip_ref_pd_voltage, WL1271_INI_SUB_BAND_COUNT_5);
+
+	COMPARE_N_ADD("FEM1_TxBiPReferencePower_5G", l, val,
+		gp->tx_bip_ref_power, WL1271_INI_SUB_BAND_COUNT_5);
+
+	COMPARE_N_ADD("FEM1_TxBiPOffsetdB_5G", l, val,
+		gp->tx_bip_ref_offset, WL1271_INI_SUB_BAND_COUNT_5);
+
+	COMPARE_N_ADD("FEM1_TxPerRatePowerLimits_5G_Normal", l, val,
+		gp->tx_per_rate_pwr_limits_normal,
+		WL1271_INI_RATE_GROUP_COUNT);
+
+	COMPARE_N_ADD("FEM1_TxPerRatePowerLimits_5G_Degraded", l, val,
+		gp->tx_per_rate_pwr_limits_degraded,
+		WL1271_INI_RATE_GROUP_COUNT);
+
+	COMPARE_N_ADD("FEM1_TxPerRatePowerLimits_5G_Extreme", l, val,
+		gp->tx_per_rate_pwr_limits_extreme,
+		WL1271_INI_RATE_GROUP_COUNT);
+
+	COMPARE_N_ADD("FEM1_DegradedLowToNormalThr_5G", l, val,
+		&gp->degraded_low_to_normal_thr, 1);
+
+	COMPARE_N_ADD("FEM1_NormalToDegradedHighThr_5G", l, val,
+		&gp->normal_to_degraded_high_thr, 1);
+
+	COMPARE_N_ADD("FEM1_TxPerChannelPowerLimits_5G_OFDM", l, val,
+		gp->tx_per_chan_pwr_limits_ofdm,
+		WL1271_INI_CHANNEL_COUNT_5);
+
+	COMPARE_N_ADD("FEM1_TxPDVsRateOffsets_5G", l, val,
+		gp->tx_pd_vs_rate_offsets,
+		WL1271_INI_RATE_GROUP_COUNT);
+
+	COMPARE_N_ADD("FEM1_TxIbiasTable_5G", l, val,
+		gp->tx_ibias,
+		WL1271_INI_RATE_GROUP_COUNT);
+
+	COMPARE_N_ADD("FEM1_RxFemInsertionLoss_5G", l, val,
+		gp->rx_fem_insertion_loss, WL1271_INI_SUB_BAND_COUNT_5);
+
+	return 1;
+}
+
+static int parse_fem_prms_128x(char *l, struct wl12xx_ini *p)
+{
+	char *name, *val;
+	struct wl128x_ini *gp = &p->ini128x;
+
+	if (split_line(l, &name, &val))
+		return 1;
+
+	COMPARE_N_ADD("FemVendorAndOptions", l, val,
+		&gp->fem_vendor_and_options, 1);
+
+	return 1;
+}
+
+static int find_section(const char *l, enum wl1271_ini_section *st, int *cntr,
+	enum wl12xx_arch arch)
 {
 	if (strncmp("TXBiPFEMAutoDetect", l, 18) == 0) {
 		*st = GENERAL_PRMS;
-		*cntr = 12;
+		if (arch == WL128X_ARCH)
+			*cntr = 17;
+		else
+			*cntr = 12;
+
 		return 0;
 	}
 
 	if (strncmp("RxTraceInsertionLoss_2_4G", l, 25) == 0) {
 		*st = BAND2_PRMS;
-		*cntr = 3;
+		if (arch == WL128X_ARCH)
+			*cntr = 2;
+		else
+			*cntr = 3;
+
+		return 0;
+	}
+
+	if (strncmp("FemVendorAndOptions", l, 19) == 0) {
+		*st = FEM_PRMS;
+		*cntr = 1;
 		return 0;
 	}
 
 	if (strncmp("RxTraceInsertionLoss_5G", l, 23) == 0) {
 		*st = BAND5_PRMS;
-		*cntr = 3;
+		if (arch == WL128X_ARCH)
+			*cntr = 2;
+		else
+			*cntr = 3;
+
 		return 0;
 	}
 
 	if (strncmp("FEM0_TXBiPReferencePDvoltage_2_4G", l, 33) == 0) {
 		*st = FEM0_BAND2_PRMS;
-		*cntr = 13;
+		if (arch == WL128X_ARCH)
+			*cntr = 15;
+		else
+			*cntr = 13;
+
 		return 0;
 	}
 
-	if (strncmp("FEM1_TXBiPReferencePDvoltage_2_4G", l, 33) == 0) {
+	if (strncmp("FEM1_TXBiPReferencePDvoltage_2_4G", l, 33) == 0 ||
+		strncmp("FEM1_TxBiPReferencePDvoltage_2_4G", l, 33) == 0) {
 		*st = FEM1_BAND2_PRMS;
-		*cntr = 13;
+		if (arch == WL128X_ARCH)
+			*cntr = 15;
+		else
+			*cntr = 13;
+
 		return 0;
 	}
 
-	if (strncmp("FEM1_TXBiPReferencePDvoltage_5G", l, 31) == 0) {
+	if (strncmp("FEM1_TXBiPReferencePDvoltage_5G", l, 31) == 0 ||
+		strncmp("FEM1_TxBiPReferencePDvoltage_5G", l, 31) == 0) {
 		*st = FEM1_BAND5_PRMS;
-		*cntr = 12;
+		if (arch == WL128X_ARCH)
+			*cntr = 14;
+		else
+			*cntr = 12;
+
 		return 0;
 	}
 
 	return 1;
 }
 
-static int ini_parse_line(char *l, int nbr, struct wl1271_ini *ini)
+static int ini_parse_line(char *l, int nbr, struct wl12xx_common *cmn)
 {
 	static enum wl1271_ini_section status = UKNOWN_SECTION;
 	static int cntr;
 
-	if (!cntr && find_section(l, &status, &cntr)) {
+	if (!cntr && find_section(l, &status, &cntr, cmn->arch)) {
 		fprintf(stderr, "Uknown ini section\n");
 		return 1;
 	}
@@ -476,29 +795,32 @@ static int ini_parse_line(char *l, int nbr, struct wl1271_ini *ini)
 	switch (status) {
 	case GENERAL_PRMS:	/* general parameters */
 		cntr--;
-		return parse_general_prms(l, &ini->general_params);
+		return cmn->parse_ops->prs_general_prms(l, &cmn->ini);
+	case FEM_PRMS:	/* FEM parameters */
+		if (cmn->arch == WL1271_ARCH)
+			return 1;
+		cntr--;
+		return parse_fem_prms_128x(l, &cmn->ini);
 	case BAND2_PRMS:	/* band 2.4GHz parameters */
 		cntr--;
-		return parse_band2_prms(l, &ini->stat_radio_params_2);
+		return cmn->parse_ops->prs_band2_prms(l, &cmn->ini);
 	case BAND5_PRMS:	/* band 5GHz parameters */
 		cntr--;
-		return parse_band5_prms(l, &ini->stat_radio_params_5);
+		return cmn->parse_ops->prs_band5_prms(l, &cmn->ini);
 	case FEM0_BAND2_PRMS:	/* FEM0 band 2.4GHz parameters */
 		cntr--;
-		return parse_fem0_band2_prms(l,
-			&(ini->dyn_radio_params_2[0].params));
+		return cmn->parse_ops->prs_fem0_band2_prms(l, &cmn->ini);
 	case FEM1_BAND2_PRMS:	/* FEM1 band 2.4GHz parameters */
 		cntr--;
-		return parse_fem1_band2_prms(l,
-			&(ini->dyn_radio_params_2[1].params));
+		return cmn->parse_ops->prs_fem1_band2_prms(l, &cmn->ini);
 	case FEM1_BAND5_PRMS:	/* FEM1 band 5GHz parameters */
 		cntr--;
-		return parse_fem1_band5_prms(l,
-			&(ini->dyn_radio_params_5[1].params));
+		return cmn->parse_ops->prs_fem1_band5_prms(l, &cmn->ini);
 	}
 
 	return 1;
 }
+
 #if 0
 static void ini_dump(struct wl1271_ini *ini)
 {
@@ -580,7 +902,49 @@ static void ini_dump(struct wl1271_ini *ini)
 
 }
 #endif
-int read_ini(const char *filename, struct wl1271_ini *ini)
+
+static struct wl12xx_parse_ops wl1271_parse_ops = {
+	.prs_general_prms       = parse_general_prms,
+	.prs_band2_prms         = parse_band2_prms,
+	.prs_band5_prms         = parse_band5_prms,
+	.prs_fem0_band2_prms    = parse_fem0_band2_prms,
+	.prs_fem1_band2_prms    = parse_fem1_band2_prms,
+	.prs_fem1_band5_prms    = parse_fem1_band5_prms,
+};
+
+static struct wl12xx_parse_ops wl128x_parse_ops = {
+	.prs_general_prms       = parse_general_prms_128x,
+	.prs_band2_prms         = parse_band2_prms_128x,
+	.prs_band5_prms         = parse_band5_prms_128x,
+	.prs_fem0_band2_prms    = parse_fem0_band2_prms_128x,
+	.prs_fem1_band2_prms    = parse_fem1_band2_prms_128x,
+	.prs_fem1_band5_prms    = parse_fem1_band5_prms_128x,
+};
+
+static int ini_get_arch(FILE *f, struct wl12xx_common *cmn)
+{
+	char buf[1024], *pos;
+	int errors = 0, line = 0;
+
+	while (ini_get_line(buf, sizeof(buf), f, &line, &pos)) {
+		if (strncmp("TCXO_Clk", pos, 8) == 0) {
+			cmn->arch = WL128X_ARCH;
+			cmn->parse_ops = &wl128x_parse_ops;
+			break;
+		}
+	}
+
+	if (cmn->arch == UNKNOWN_ARCH) {
+		cmn->arch = WL1271_ARCH;
+		cmn->parse_ops = &wl1271_parse_ops;
+	}
+
+	fseek(f, 0L, SEEK_SET);
+
+	return 0;
+}
+
+int read_ini(const char *filename, struct wl12xx_common *cmn)
 {
 	FILE *f;
 	char buf[1024], *pos;
@@ -590,8 +954,12 @@ int read_ini(const char *filename, struct wl1271_ini *ini)
 	if (f == NULL)
 		return 1;
 
+	/* check if it 127x or 128x */
+	ini_get_arch(f, cmn);
+
+	/* start parsing */
 	while (ini_get_line(buf, sizeof(buf), f, &line, &pos))
-		ini_parse_line(pos, line, ini);
+		ini_parse_line(pos, line, cmn);
 
 	fclose(f);
 #if 0

@@ -34,14 +34,14 @@ make
 		cp new-nvs.bin /lib/firmware/wl1271-nvs.bin
 3. Reboot the system
 
---- INI files
+--- How to pickup INI file
 
 It is very important to select INI file according to the firmware (see below).
-
 Those files organized in 3 directories:
 station - currently supported station firmware (wl1271-fw.bin)
 access_point - currently supported access point (wl1271-fw-ap.bin)
-development - files for firmware under release stage 
+
+For BeagleBoard with BeagleToy use TQS_S_2.6.ini
 
 --- Firmware files
 

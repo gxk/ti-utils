@@ -198,7 +198,10 @@ static int set_ref_nvs(struct nl80211_state *state, struct nl_cb *cb,
 			struct nl_msg *msg, int argc, char **argv)
 {
 	struct wl1271_cmd_cal_p2g placeholder;
-	struct wl1271_ini ini;
+	struct wl12xx_common cmn = {
+		.arch = UNKNOWN_ARCH,
+		.parse_ops = NULL
+	};
 
 	argc -= 2;
 	argv += 2;
@@ -206,15 +209,17 @@ static int set_ref_nvs(struct nl80211_state *state, struct nl_cb *cb,
 	if (argc != 1)
 		return 1;
 
-	if (read_ini(*argv, &ini)) {
+	if (read_ini(*argv, &cmn)) {
 		fprintf(stderr, "Fail to read ini file\n");
 		return 1;
 	}
 
+	cfg_nvs_ops(&cmn);
+
 	memset(&placeholder, 0, sizeof(struct wl1271_cmd_cal_p2g));
 
 	placeholder.len = NVS_TX_PARAM_LENGTH;
-	if (prepare_nvs_file(&placeholder, &ini)) {
+	if (prepare_nvs_file(&placeholder, &cmn)) {
 		fprintf(stderr, "Fail to prepare new NVS file\n");
 		return 1;
 	}
@@ -228,3 +233,44 @@ static int set_ref_nvs(struct nl80211_state *state, struct nl_cb *cb,
 
 COMMAND(set, ref_nvs, "<ini file>", 0, 0, CIB_NONE, set_ref_nvs,
 	"Create reference NVS file");
+
+static int set_upd_nvs(struct nl80211_state *state, struct nl_cb *cb,
+			struct nl_msg *msg, int argc, char **argv)
+{
+	char *fname = NULL;
+
+	struct wl12xx_common cmn = {
+		.arch = UNKNOWN_ARCH,
+		.parse_ops = NULL
+	};
+
+	argc -= 2;
+	argv += 2;
+
+	if (argc < 1)
+		return 1;
+
+	if (read_ini(*argv, &cmn)) {
+		fprintf(stderr, "Fail to read ini file\n");
+		return 1;
+	}
+
+	cfg_nvs_ops(&cmn);
+
+	if (argc == 2)
+		fname = *++argv;
+
+	if (update_nvs_file(fname, &cmn)) {
+		fprintf(stderr, "Fail to prepare new NVS file\n");
+		return 1;
+	}
+
+	printf("\n\tThe updated NVS file (%s) is ready\n\tCopy it to %s and "
+		"reboot the system\n\n",
+		NEW_NVS_NAME, CURRENT_NVS_NAME);
+
+	return 0;
+}
+
+COMMAND(set, upd_nvs, "<ini file> [<nvs file>]", 0, 0, CIB_NONE, set_upd_nvs,
+	"Update values of a NVS from INI file");
