@@ -2,6 +2,12 @@
 The calibrator and other useful utilities for TI wireless solution,
 based on wl12xx driver.
 
+Calibration is process of determining radio parameters per device and provide 
+them for hardware. The data provided by calibration stored in NVS file which
+kept separately from firmware file.
+
+The NVS file contents of 2 parts, where one for parameters from calibration
+process and other for parameters from INI file.
 
 --- Build procedure
 
@@ -141,6 +147,16 @@ calibrator wlan0 plt power_mode off
 While willing to reset the statistic run:
 calibrator wlan0 plt reset_rx_statcs
 
+	Update NVS file procedure
+
+This is procedure changes ini part of NVS file. It helps when there is need
+to change ini part of NVS which already calibrarted. 
+
+calibrator set upd_nvs <ini file> [<nvs file>]
+
+If NVS filename parameter not provided the current NVS file will be used from
+destination directory (usually /lib/firmware).
+
 	Miscelanious procedures
 
 Read MAC address from NVS file:
@@ -152,6 +168,8 @@ calibrator set nvs_mac <mac addr xx:xx:xx:xx:xx:xx> <nvs file>
 Push local NVS to the system:
 calibrator phy <phyname> set push_nvs <nvs filename>
 
+Dump NVS file:
+calibrator get dump_nvs [<nvs filename>]
 
 -------------------------------------------------------------------------------
 

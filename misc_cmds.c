@@ -231,7 +231,7 @@ COMMAND(set, ref_nvs, "<ini file>", 0, 0, CIB_NONE, set_ref_nvs,
 	"Create reference NVS file");
 
 static int set_upd_nvs(struct nl80211_state *state, struct nl_cb *cb,
-			struct nl_msg *msg, int argc, char **argv)
+	struct nl_msg *msg, int argc, char **argv)
 {
 	char *fname = NULL;
 	struct wl12xx_common cmn = {
@@ -261,11 +261,36 @@ static int set_upd_nvs(struct nl80211_state *state, struct nl_cb *cb,
 	}
 
 	printf("\n\tThe updated NVS file (%s) is ready\n\tCopy it to %s and "
-		"reboot the system\n\n",
-		NEW_NVS_NAME, CURRENT_NVS_NAME);
+		"reboot the system\n\n", NEW_NVS_NAME, CURRENT_NVS_NAME);
 
 	return 0;
 }
 
 COMMAND(set, upd_nvs, "<ini file> [<nvs file>]", 0, 0, CIB_NONE, set_upd_nvs,
 	"Update values of a NVS from INI file");
+
+static int get_dump_nvs(struct nl80211_state *state, struct nl_cb *cb,
+			struct nl_msg *msg, int argc, char **argv)
+{
+	char *fname = NULL;
+	struct wl12xx_common cmn = {
+		.arch = UNKNOWN_ARCH,
+		.parse_ops = NULL
+	};
+
+	argc -= 2;
+	argv += 2;
+
+	if (argc > 0)
+		fname = *argv;
+
+	if (dump_nvs_file(fname, &cmn)) {
+		fprintf(stderr, "Fail to prepare new NVS file\n");
+		return 1;
+	}
+
+	return 0;
+}
+
+COMMAND(get, dump_nvs, "[<nvs file>]", 0, 0, CIB_NONE, get_dump_nvs,
+	"Dump NVS file, specified by option or current");

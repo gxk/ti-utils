@@ -140,23 +140,12 @@ void cfg_nvs_ops(struct wl12xx_common *cmn)
 		cmn->nvs_ops = &wl128x_nvs_ops;
 }
 
-int read_from_current_nvs(const unsigned char *nvs_file,
+static int read_from_current_nvs(const unsigned char *nvs_file,
 	char *buf, int size, int *nvs_sz)
 {
 	int curr_nvs, ret;
-	int fl_sz = file_exist(CURRENT_NVS_NAME);
 
-	if (nvs_file == NULL)
-		fl_sz = file_exist(CURRENT_NVS_NAME);
-	else
-		fl_sz = file_exist(nvs_file);
-
-	if (fl_sz < 0) {
-		fprintf(stderr, "File %s not exists\n", CURRENT_NVS_NAME);
-		return 1;
-	}
-
-	curr_nvs = open(CURRENT_NVS_NAME, O_RDONLY, S_IRUSR | S_IWUSR);
+	curr_nvs = open(nvs_file, O_RDONLY, S_IRUSR | S_IWUSR);
 	if (curr_nvs < 0) {
 		fprintf(stderr, "%s> Unable to open NVS file for reference "
 			"(%s)\n", __func__, strerror(errno));
@@ -175,19 +164,32 @@ int read_from_current_nvs(const unsigned char *nvs_file,
 
 	close(curr_nvs);
 
-#if 0
-	{
-		unsigned char *p = (unsigned char *)buf;
-		int sz;
-		for (sz = 0; sz < size; sz++) {
-			if (sz%16 == 0)
-				printf("\n");
-			printf("%02x ", *p++);
-		}
-	}
-#endif
-
 	return 0;
+}
+
+int read_nvs(const unsigned char *nvs_file, char *buf, int size, int *nvs_sz)
+{
+	int ret, fl_sz;
+	char file2read[FILENAME_MAX];
+
+	if (nvs_file == NULL) {
+		printf("The path to NVS file not provided."
+			"Will use default (%s)\n", CURRENT_NVS_NAME);
+
+		strncpy(file2read, CURRENT_NVS_NAME, strlen(CURRENT_NVS_NAME));
+
+	} else
+		strncpy(file2read, nvs_file, strlen(nvs_file));
+
+	fl_sz = file_exist(file2read);
+	if (fl_sz < 0) {
+		fprintf(stderr, "File %s not exists\n", CURRENT_NVS_NAME);
+		return 1;
+	}
+
+	printf("Read NVS file (%s)\n", file2read);
+
+	return read_from_current_nvs(file2read, buf, size, nvs_sz);
 }
 
 static int fill_nvs_def_rx_params(int fd)
@@ -408,7 +410,7 @@ int prepare_nvs_file(void *arg)
 		return 1;
 	}
 
-	if (read_from_current_nvs(NULL, buf, BUF_SIZE_4_NVS_FILE, &nvs_size))
+	if (read_nvs(NULL, buf, BUF_SIZE_4_NVS_FILE, &nvs_size))
 		return 1;
 
 	switch (nvs_size) {
@@ -558,12 +560,9 @@ int update_nvs_file(const char *nvs_file, struct wl12xx_common *cmn)
 	int new_nvs, res = 0;
 	unsigned char buf[2048];
 	unsigned char *p;
-#if 0
-	if (nvs_file == NULL)
-		printf("The path to current NVS file not provided."
-			"Will use default (%s)\n", CURRENT_NVS_NAME);
 
-	if (read_from_current_nvs(nvs_file, buf, BUF_SIZE_4_NVS_FILE, cmn))
+	res = read_nvs(nvs_file, buf, BUF_SIZE_4_NVS_FILE, NULL);
+	if (res)
 		return 1;
 
 	/* create new NVS file */
@@ -590,6 +589,27 @@ int update_nvs_file(const char *nvs_file, struct wl12xx_common *cmn)
 
 out:
 	close(new_nvs);
-#endif
+
 	return res;
+}
+
+int dump_nvs_file(const char *nvs_file, struct wl12xx_common *cmn)
+{
+	int sz=0, size;
+	unsigned char buf[2048];
+	unsigned char *p = (unsigned char *)buf;
+
+	if (read_nvs(nvs_file, buf, BUF_SIZE_4_NVS_FILE, &size))
+		return 1;
+
+	printf("\nThe size is %d bytes\n", size);
+
+	for ( ; sz < size; sz++) {
+		if (sz%16 == 0)
+			printf("\n %04X ", sz);
+		printf("%02x ", *p++);
+	}
+	printf("\n");
+
+	return 0;
 }
