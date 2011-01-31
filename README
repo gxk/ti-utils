@@ -7,7 +7,7 @@ based on wl12xx driver.
 
 Make sure your kernel is configured to support nl80211 testmode commands.
 (NL80211_TESTMODE=y)
-There is dependents on libnl package.
+There is dependents on libnl v2.x package.
 
 Set follow environment variables:
 export NFSROOT=<path to roofs of a target where installed libnl library>
@@ -86,7 +86,8 @@ several parameters as described bellow, to enable diversity of
 operational modes.
 It is mostly used to see Energy and radio impact on Air.
 Content of Packet can be Random, or Zero, One, Zero, one...
-Packets send are configurable in the following aspects:
+
+Packets send are configurable with following parameters:
   Delay between packets in microseconds
   Rate
     1 Mbps -   0x00000001       MCS_0 - 0x00002000

@@ -197,7 +197,6 @@ COMMAND(set, nvs_mac, "<mac addr> <nvs file>", 0, 0, CIB_NONE, set_nvs_mac,
 static int set_ref_nvs(struct nl80211_state *state, struct nl_cb *cb,
 			struct nl_msg *msg, int argc, char **argv)
 {
-	struct wl1271_cmd_cal_p2g placeholder;
 	struct wl12xx_common cmn = {
 		.arch = UNKNOWN_ARCH,
 		.parse_ops = NULL
@@ -216,10 +215,7 @@ static int set_ref_nvs(struct nl80211_state *state, struct nl_cb *cb,
 
 	cfg_nvs_ops(&cmn);
 
-	memset(&placeholder, 0, sizeof(struct wl1271_cmd_cal_p2g));
-
-	placeholder.len = NVS_TX_PARAM_LENGTH;
-	if (prepare_nvs_file(&placeholder, &cmn)) {
+	if (create_nvs_file(&cmn)) {
 		fprintf(stderr, "Fail to prepare new NVS file\n");
 		return 1;
 	}
@@ -238,7 +234,6 @@ static int set_upd_nvs(struct nl80211_state *state, struct nl_cb *cb,
 			struct nl_msg *msg, int argc, char **argv)
 {
 	char *fname = NULL;
-
 	struct wl12xx_common cmn = {
 		.arch = UNKNOWN_ARCH,
 		.parse_ops = NULL

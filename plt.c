@@ -53,8 +53,7 @@ static int plt_power_mode(struct nl80211_state *state, struct nl_cb *cb,
 	else if (strcmp(argv[0], "off") == 0)
 		pmode = 0;
 	else {
-		fprintf(stderr, "%s> Invalid parameter: %s\n",
-			__func__, argv[0]);
+		fprintf(stderr, "%s> Invalid parameter\n", __func__);
 		return 2;
 	}
 
@@ -196,7 +195,7 @@ static int calib_valid_handler(struct nl_msg *msg, void *arg)
 		}
 		printf("++++++++++++++++++++++++\n");
 #endif
-	if (prepare_nvs_file(prms, NULL)) {
+	if (prepare_nvs_file(prms)) {
 		fprintf(stderr, "Fail to prepare new NVS file\n");
 		return 2;
 	}
@@ -638,7 +637,7 @@ static int plt_calibrate(struct nl80211_state *state, struct nl_cb *cb,
 		}
 	}
 #endif
-	/* calibrate off */
+	/* calibrate it */
 	{
 		int err;
 		char *prms[11] = {

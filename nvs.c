@@ -31,6 +31,59 @@
 
 static const char if_name_fmt[] = "wlan%d";
 
+int nvs_fill_radio_params(int fd, struct wl12xx_ini *ini, char *buf)
+{
+	int size;
+	struct wl1271_ini *gp;
+
+	if (ini)
+		gp = &ini->ini1271;
+
+	size  = sizeof(struct wl1271_ini);
+
+	if (ini) {	/* for reference NVS */
+		unsigned char *c = (unsigned char *)gp;
+		int i;
+
+		for (i = 0; i < size; i++)
+			write(fd, c++, 1);
+	} else {
+		unsigned char *p = buf + 0x1D4;
+		write(fd, p, size);
+	}
+
+	return 0;
+}
+
+static int nvs_fill_radio_params_128x(int fd, struct wl12xx_ini *ini, char *buf)
+{
+	int size;
+	struct wl128x_ini *gp = &ini->ini128x;
+
+	size  = sizeof(struct wl128x_ini);
+
+	if (ini) {	/* for reference NVS */
+		unsigned char *c = (unsigned char *)gp;
+		int i;
+
+		for (i = 0; i < size; i++)
+			write(fd, c++, 1);
+	} else {
+		unsigned char *p = buf + 0x1D4;
+		write(fd, p, size);
+	}
+
+	return 0;
+}
+
+static struct wl12xx_nvs_ops wl1271_nvs_ops = {
+	.nvs_fill_radio_prms = nvs_fill_radio_params,
+};
+
+static struct wl12xx_nvs_ops wl128x_nvs_ops = {
+	.nvs_fill_radio_prms = nvs_fill_radio_params_128x,
+};
+
 int get_mac_addr(int ifc_num, unsigned char *mac_addr)
 {
 	int s;
@@ -41,14 +94,14 @@ int get_mac_addr(int ifc_num, unsigned char *mac_addr)
 #endif
 	s = socket(PF_INET, SOCK_DGRAM, IPPROTO_IP);
 	if (s < 0) {
-		printf("unable to socket (%s)\n", strerror(errno));
+		fprintf(stderr, "unable to socket (%s)\n", strerror(errno));
 		return 1;
 	}
 
 	memset(&ifr, 0, sizeof(struct ifreq));
 	sprintf(ifr.ifr_name, if_name_fmt, ifc_num) ;
 	if (ioctl(s, SIOCGIFHWADDR, &ifr) < 0) {
-		printf("unable to ioctl (%s)\n", strerror(errno));
+		fprintf(stderr, "unable to ioctl (%s)\n", strerror(errno));
 		close(s);
 		return 1;
 	}
@@ -66,23 +119,31 @@ int file_exist(const char *filename)
 	int ret;
 
 	if (filename == NULL) {
-		printf("wrong parameter\n");
+		fprintf(stderr, "wrong parameter\n");
 		return -1;
 	}
 
 	ret = stat(filename, &buf);
 	if (ret != 0) {
-		printf("fail to stat (%s)\n", strerror(errno));
+		fprintf(stderr, "fail to stat (%s)\n", strerror(errno));
 		return -1;
 	}
 
 	return (int)buf.st_size;
 }
 
-static int read_from_current_nvs(const unsigned char *nvs_file,
-	char *buf, int size)
+void cfg_nvs_ops(struct wl12xx_common *cmn)
 {
-	int curr_nvs;
+	if (cmn->arch == WL1271_ARCH)
+		cmn->nvs_ops = &wl1271_nvs_ops;
+	else
+		cmn->nvs_ops = &wl128x_nvs_ops;
+}
+
+int read_from_current_nvs(const unsigned char *nvs_file,
+	char *buf, int size, int *nvs_sz)
+{
+	int curr_nvs, ret;
 	int fl_sz = file_exist(CURRENT_NVS_NAME);
 
 	if (nvs_file == NULL)
@@ -91,20 +152,40 @@ static int read_from_current_nvs(const unsigned char *nvs_file,
 		fl_sz = file_exist(nvs_file);
 
 	if (fl_sz < 0) {
-		printf("File %s not exists\n", CURRENT_NVS_NAME);
+		fprintf(stderr, "File %s not exists\n", CURRENT_NVS_NAME);
 		return 1;
 	}
 
 	curr_nvs = open(CURRENT_NVS_NAME, O_RDONLY, S_IRUSR | S_IWUSR);
 	if (curr_nvs < 0) {
-		printf("%s> Unable to open NVS file for reference (%s)\n",
-			__func__, strerror(errno));
+		fprintf(stderr, "%s> Unable to open NVS file for reference "
+			"(%s)\n", __func__, strerror(errno));
 		return 1;
 	}
 
-	read(curr_nvs, buf, size);
+	ret = read(curr_nvs, buf, size);
+	if (ret < 0) {
+		fprintf(stderr, "Fail to open file %s (%s)", strerror(errno));
+		close(curr_nvs);
+		return 1;
+	}
+
+	if (nvs_sz)
+		*nvs_sz = ret;
 
 	close(curr_nvs);
+
+#if 0
+	{
+		unsigned char *p = (unsigned char *)buf;
+		int sz;
+		for (sz = 0; sz < size; sz++) {
+			if (sz%16 == 0)
+				printf("\n");
+			printf("%02x ", *p++);
+		}
+	}
+#endif
 
 	return 0;
 }
@@ -209,7 +290,7 @@ static int nvs_fill_old_rx_data(int fd, const unsigned char *buf,
 	return 0;
 }
 
-static int nvs_fill_nvs_part(int fd, char *buf)
+static int nvs_upd_nvs_part(int fd, char *buf)
 {
 	unsigned char *p = buf;
 
@@ -218,52 +299,73 @@ static int nvs_fill_nvs_part(int fd, char *buf)
 	return 0;
 }
 
-static int nvs_fill_radio_params(int fd, struct wl12xx_ini *ini, char *buf)
+static int nvs_fill_nvs_part(int fd)
 {
-	int size;
-	struct wl1271_ini *gp = &ini->ini1271;
+	int i;
+	unsigned char mac_addr[MAC_ADDR_LEN];
+	__le16 nvs_tx_sz = NVS_TX_PARAM_LENGTH;
+	__le32 nvs_ver = 0x0;
+	const unsigned char vals[] = {
+		0x0, 0x1, 0x6d, 0x54, 0x71, eTLV_LAST, eNVS_RADIO_TX_PARAMETERS
+	};
 
-	size  = sizeof(struct wl1271_ini);
-	printf("Radio prms sz: %d\n", size);
+	write(fd, &vals[1], 1);
+	write(fd, &vals[2], 1);
+	write(fd, &vals[3], 1);
 
-	if (ini) {	/* for reference NVS */
-		unsigned char *c = (unsigned char *)gp;
-		int i;
-
-		for (i = 0; i < size; i++)
-			write(fd, c++, 1);
-	} else {
-		unsigned char *p = buf + 0x1D4;
-		write(fd, p, size);
+	if (get_mac_addr(0, mac_addr)) {
+		fprintf(stderr, "%s> Fail to get mac address\n", __func__);
+		return 1;
 	}
+
+	/* write down MAC address in new NVS file */
+	write(fd, &mac_addr[5], 1);
+	write(fd, &mac_addr[4], 1);
+	write(fd, &mac_addr[3], 1);
+	write(fd, &mac_addr[2], 1);
+
+	write(fd, &vals[1], 1);
+	write(fd, &vals[4], 1);
+	write(fd, &vals[3], 1);
+
+	write(fd, &mac_addr[1], 1);
+	write(fd, &mac_addr[0], 1);
+
+	write(fd, &vals[0], 1);
+	write(fd, &vals[0], 1);
+
+	/* fill end burst transaction zeros */
+	for (i = 0; i < NVS_END_BURST_TRANSACTION_LENGTH; i++)
+		write(fd, &vals[0], 1);
+
+	/* fill zeros to Align TLV start address */
+	for (i = 0; i < NVS_ALING_TLV_START_ADDRESS_LENGTH; i++)
+		write(fd, &vals[0], 1);
+
+	/* Fill Tx calibration part */
+	write(fd, &vals[6], 1);
+	write(fd, &nvs_tx_sz, 2);
+
+	for (i = 0; i < nvs_tx_sz; i++)
+		write(fd, &vals[0], 1);
+
+	/* Fill Rx calibration part */
+	fill_nvs_def_rx_params(fd);
+
+	/* fill NVS version */
+	if (nvs_fill_version(fd, &nvs_ver))
+		fprintf(stderr, "Fail to fill version\n");
+
+	/* fill end of NVS */
+	write(fd, &vals[5], 1); /* eTLV_LAST */
+	write(fd, &vals[5], 1); /* eTLV_LAST */
+	write(fd, &vals[0], 1);
+	write(fd, &vals[0], 1);
 
 	return 0;
 }
 
-static int nvs_fill_radio_params_128x(int fd, struct wl12xx_ini *ini, char *buf)
-{
-	int size;
-	struct wl128x_ini *gp = &ini->ini128x;
-
-	size  = sizeof(struct wl128x_ini);
-	printf("Radio prms sz: %d\n", size);
-
-	if (ini) {	/* for reference NVS */
-		unsigned char *c = (unsigned char *)gp;
-		int i;
-
-		for (i = 0; i < size; i++)
-			write(fd, c++, 1);
-	printf("written sz: %d\n", i);
-	} else {
-		unsigned char *p = buf + 0x1D4;
-		write(fd, p, size);
-	}
-
-	return 0;
-}
-
-static int nvs_fill_version(int fd, struct wl1271_cmd_cal_p2g *pdata)
+int nvs_fill_version(int fd, unsigned int *pdata)
 {
 	unsigned char tmp = eNVS_VERSION;
 	unsigned short tmp2 = NVS_VERSION_PARAMETER_LENGTH;
@@ -272,49 +374,62 @@ static int nvs_fill_version(int fd, struct wl1271_cmd_cal_p2g *pdata)
 
 	write(fd, &tmp2, 2);
 
-	tmp = (pdata->ver >> 16) & 0xff;
+	tmp = (*pdata >> 16) & 0xff;
 	write(fd, &tmp, 1);
 
-	tmp = (pdata->ver >> 8) & 0xff;
+	tmp = (*pdata >> 8) & 0xff;
 	write(fd, &tmp, 1);
 
-	tmp = pdata->ver & 0xff;
+	tmp = *pdata & 0xff;
 	write(fd, &tmp, 1);
 
 	return 0;
 }
 
-static struct wl12xx_nvs_ops wl1271_nvs_ops = {
-	.nvs_fill_radio_prms = nvs_fill_radio_params,
-};
-
-static struct wl12xx_nvs_ops wl128x_nvs_ops = {
-	.nvs_fill_radio_prms = nvs_fill_radio_params_128x,
-};
-
-int prepare_nvs_file(void *arg, struct wl12xx_common *cmn)
+int prepare_nvs_file(void *arg)
 {
-	int new_nvs, i;
+	int new_nvs, i, nvs_size;
 	unsigned char mac_addr[MAC_ADDR_LEN];
 	struct wl1271_cmd_cal_p2g *pdata;
 	struct wl1271_cmd_cal_p2g old_data[eNUMBER_RADIO_TYPE_PARAMETERS_INFO];
 	unsigned char buf[2048];
 	unsigned char *p;
-	struct wl12xx_ini *pini = NULL;
+	struct wl12xx_common cmn = {
+		.arch = UNKNOWN_ARCH,
+		.parse_ops = NULL,
+		.nvs_ops = NULL
+	};
 	const unsigned char vals[] = {
 		0x0, 0x1, 0x6d, 0x54, 0x71, eTLV_LAST, eNVS_RADIO_TX_PARAMETERS
 	};
 
 	if (arg == NULL) {
-		printf("%s> Missing args\n", __func__);
+		fprintf(stderr, "%s> Missing args\n", __func__);
 		return 1;
 	}
+
+	if (read_from_current_nvs(NULL, buf, BUF_SIZE_4_NVS_FILE, &nvs_size))
+		return 1;
+
+	switch (nvs_size) {
+	case NVS_FILE_SIZE_127X:
+		cmn.arch = WL1271_ARCH;
+		break;
+	case NVS_FILE_SIZE_128X:
+		cmn.arch = WL128X_ARCH;
+		break;
+	default:
+		fprintf(stderr, "%s> Wrong file size\n", __func__);
+		return 1;
+	}
+
+	cfg_nvs_ops(&cmn);
 
 	/* create new NVS file */
 	new_nvs = open(NEW_NVS_NAME,
 		O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
 	if (new_nvs < 0) {
-		printf("%s> Unable to open new NVS file\n", __func__);
+		fprintf(stderr, "%s> Unable to open new NVS file\n", __func__);
 		return 1;
 	}
 
@@ -323,7 +438,7 @@ int prepare_nvs_file(void *arg, struct wl12xx_common *cmn)
 	write(new_nvs, &vals[3], 1);
 
 	if (get_mac_addr(0, mac_addr)) {
-		printf("%s> Fail to get mac addr\n", __func__);
+		fprintf(stderr, "%s> Fail to get mac addr\n", __func__);
 		close(new_nvs);
 		return 1;
 	}
@@ -362,18 +477,7 @@ int prepare_nvs_file(void *arg, struct wl12xx_common *cmn)
 	for (i = 0; i < pdata->len; i++)
 		write(new_nvs, p++, 1);
 
-	/* must to return, because anyway need
-	 * the radio parameters from old NVS */
-	if (read_from_current_nvs(NULL, buf, BUF_SIZE_4_NVS_FILE)) {
-		close(new_nvs);
-		return 1;
-	}
-
-	if (cmn) {
-		fill_nvs_def_rx_params(new_nvs);
-
-		pini = &cmn->ini;
-	} else {
+	{
 		unsigned int old_ver;
 #if 0
 		{
@@ -397,8 +501,8 @@ int prepare_nvs_file(void *arg, struct wl12xx_common *cmn)
 	}
 
 	/* fill NVS version */
-	if (nvs_fill_version(new_nvs, pdata))
-		printf("Fail to fill version\n");
+	if (nvs_fill_version(new_nvs, &pdata->ver))
+		fprintf(stderr, "Fail to fill version\n");
 
 	/* fill end of NVS */
 	write(new_nvs, &vals[5], 1); /* eTLV_LAST */
@@ -407,12 +511,46 @@ int prepare_nvs_file(void *arg, struct wl12xx_common *cmn)
 	write(new_nvs, &vals[0], 1);
 
 	/* fill radio params */
-	if (cmn->nvs_ops->nvs_fill_radio_prms(new_nvs, pini, buf))
-		printf("Fail to fill radio params\n");
+	if (cmn.nvs_ops->nvs_fill_radio_prms(new_nvs, NULL, buf))
+		fprintf(stderr, "Fail to fill radio params\n");
 
 	close(new_nvs);
 
 	return 0;
+}
+
+int create_nvs_file(struct wl12xx_common *cmn)
+{
+	int new_nvs, res = 0;
+	unsigned char buf[2048];
+	unsigned char *p;
+
+	/* create new NVS file */
+	new_nvs = open(NEW_NVS_NAME,
+		O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+	if (new_nvs < 0) {
+		fprintf(stderr, "%s> Unable to open new NVS file\n", __func__);
+		return 1;
+	}
+
+	/* fill nvs part */
+	if (nvs_fill_nvs_part(new_nvs)) {
+		fprintf(stderr, "Fail to fill NVS part\n");
+		res = 1;
+
+		goto out;
+	}
+
+	/* fill radio params */
+	if (cmn->nvs_ops->nvs_fill_radio_prms(new_nvs, &cmn->ini, buf)) {
+		fprintf(stderr, "Fail to fill radio params\n");
+		res = 1;
+	}
+
+out:
+	close(new_nvs);
+
+	return res;
 }
 
 int update_nvs_file(const char *nvs_file, struct wl12xx_common *cmn)
@@ -420,12 +558,12 @@ int update_nvs_file(const char *nvs_file, struct wl12xx_common *cmn)
 	int new_nvs, res = 0;
 	unsigned char buf[2048];
 	unsigned char *p;
-
+#if 0
 	if (nvs_file == NULL)
 		printf("The path to current NVS file not provided."
 			"Will use default (%s)\n", CURRENT_NVS_NAME);
 
-	if (read_from_current_nvs(nvs_file, buf, BUF_SIZE_4_NVS_FILE))
+	if (read_from_current_nvs(nvs_file, buf, BUF_SIZE_4_NVS_FILE, cmn))
 		return 1;
 
 	/* create new NVS file */
@@ -437,7 +575,7 @@ int update_nvs_file(const char *nvs_file, struct wl12xx_common *cmn)
 	}
 
 	/* fill nvs part */
-	if (nvs_fill_nvs_part(new_nvs, buf)) {
+	if (nvs_upd_nvs_part(new_nvs, buf)) {
 		fprintf(stderr, "Fail to fill NVS part\n");
 		res = 1;
 
@@ -452,14 +590,6 @@ int update_nvs_file(const char *nvs_file, struct wl12xx_common *cmn)
 
 out:
 	close(new_nvs);
-
+#endif
 	return res;
-}
-
-void cfg_nvs_ops(struct wl12xx_common *cmn)
-{
-	if (cmn->arch == WL1271_ARCH)
-		cmn->nvs_ops = &wl1271_nvs_ops;
-	else
-		cmn->nvs_ops = &wl128x_nvs_ops;
 }
