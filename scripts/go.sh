@@ -6,31 +6,32 @@
 # 4 - load driver			0100
 # 8 - up dev, load wpa_supplicant	1000
 
-go_version="0.3"
+go_version="0.4"
 usage()
 {
 	echo -e "\tUSAGE:\n\t    `basename $0` <option>"
 	echo -e "\t\t-b <value> - bootlevel, where\n\t\t\t7-PLT boot"
 	echo -e "\t\t\t15-full boot"
 	echo -e "\t\t-d <value> - debuglevel, where"
-	echo -e "\t\t\tDEBUG_IRQ       = BIT(0)
-		\tDEBUG_SPI       = BIT(1)
-		\tDEBUG_BOOT      = BIT(2)
-		\tDEBUG_MAILBOX   = BIT(3)
-		\tDEBUG_TESTMODE  = BIT(4)
-		\tDEBUG_EVENT     = BIT(5)
-		\tDEBUG_TX        = BIT(6)
-		\tDEBUG_RX        = BIT(7)
-		\tDEBUG_SCAN      = BIT(8)
-		\tDEBUG_CRYPT     = BIT(9)
-		\tDEBUG_PSM       = BIT(10)
-		\tDEBUG_MAC80211  = BIT(11)
-		\tDEBUG_CMD       = BIT(12)
-		\tDEBUG_ACX       = BIT(13)
-		\tDEBUG_SDIO      = BIT(14)
-		\tDEBUG_FILTERS   = BIT(15)
-		\tDEBUG_ADHOC     = BIT(16)
-		\tDEBUG_ALL       = ~0"
+	echo -e "\t\t\t  -1      - shows current value
+\t\t\tDEBUG_IRQ       = BIT(0)
+\t\t\tDEBUG_SPI       = BIT(1)
+\t\t\tDEBUG_BOOT      = BIT(2)
+\t\t\tDEBUG_MAILBOX   = BIT(3)
+\t\t\tDEBUG_TESTMODE  = BIT(4)
+\t\t\tDEBUG_EVENT     = BIT(5)
+\t\t\tDEBUG_TX        = BIT(6)
+\t\t\tDEBUG_RX        = BIT(7)
+\t\t\tDEBUG_SCAN      = BIT(8)
+\t\t\tDEBUG_CRYPT     = BIT(9)
+\t\t\tDEBUG_PSM       = BIT(10)
+\t\t\tDEBUG_MAC80211  = BIT(11)
+\t\t\tDEBUG_CMD       = BIT(12)
+\t\t\tDEBUG_ACX       = BIT(13)
+\t\t\tDEBUG_SDIO      = BIT(14)
+\t\t\tDEBUG_FILTERS   = BIT(15)
+\t\t\tDEBUG_ADHOC     = BIT(16)
+\t\t\tDEBUG_ALL       = ~0"
 	echo -e "\t\t-m <value> - set MAC address"
 	echo -e "\t\t-ip [value] - set IP address"
 	echo -e "\t\t-v - get script version"
@@ -180,11 +181,11 @@ if [ "$stage_otto" -ne "0" ]; then
 	echo -e "\t---===<<<((( Level 8 )))>>>===---\n"
 fi
 
-if [ "$dbg_lvl" -eq "1" ] && [ -e /debug/ieee80211/phy0/wl12xx/debug_level ]; then
-	dbg_lvl=`cat /debug/ieee80211/phy0/wl12xx/debug_level`
+if [ "$dbg_lvl" -eq "-1" ] && [ -e /sys/module/wl12xx/parameters/debug_level ]; then
+	dbg_lvl=`cat /sys/module/wl12xx/parameters/debug_level`
 	echo -e "\ndbg lvl: $dbg_lvl\n"
-elif [ "$dbg_lvl" -ne "0" ] && [ -e /debug/ieee80211/phy0/wl12xx/debug_level ]; then
-	echo "$dbg_lvl" > /debug/ieee80211/phy0/wl12xx/debug_level
+elif [ "$dbg_lvl" -ne "0" ] && [ -e /sys/module/wl12xx/parameters/debug_level ]; then
+	echo "$dbg_lvl" > /sys/module/wl12xx/parameters/debug_level
 
 	echo 'module wl12xx +p' > /debug/dynamic_debug/control
 fi
