@@ -68,6 +68,7 @@ static int nvs_fill_radio_params_128x(int fd, struct wl12xx_ini *ini, char *buf)
 
 		for (i = 0; i < size; i++)
 			write(fd, c++, 1);
+
 	} else {
 		unsigned char *p = buf + 0x1D4;
 		write(fd, p, size);

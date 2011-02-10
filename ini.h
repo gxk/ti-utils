@@ -41,9 +41,9 @@ struct wl1271_ini_general_params {
 	unsigned char srf3[WL1271_INI_MAX_SMART_REFLEX_PARAM];
 } __attribute__((packed));
 
-#define WL1271_INI_MAX_SETTINGS_PARAM 4
+#define WL128X_INI_MAX_SETTINGS_PARAM 4
 
-struct wl1271_ini_general_params_wl128x {
+struct wl128x_ini_general_params {
 	unsigned char ref_clock;
 	unsigned char settling_time;
 	unsigned char clk_valid_on_wakeup;
@@ -56,7 +56,7 @@ struct wl1271_ini_general_params_wl128x {
 	unsigned char dual_mode_select;
 	unsigned char tx_bip_fem_auto_detect;
 	unsigned char tx_bip_fem_manufacturer;
-	unsigned char general_settings[WL1271_INI_MAX_SETTINGS_PARAM];
+	unsigned char general_settings[WL128X_INI_MAX_SETTINGS_PARAM];
 	unsigned char sr_state;
 	unsigned char srf1[WL1271_INI_MAX_SMART_REFLEX_PARAM];
 	unsigned char srf2[WL1271_INI_MAX_SMART_REFLEX_PARAM];
@@ -72,15 +72,16 @@ struct wl1271_ini_band_params_2 {
 		rx_rssi_process_compens[WL1271_INI_RSSI_PROCESS_COMPENS_SIZE];
 } __attribute__((packed));
 
-#define WL1271_INI_RATE_GROUP_COUNT 6
 #define WL1271_INI_CHANNEL_COUNT_2 14
 
-struct wl1271_ini_band_params_2_wl128x {
+struct wl128x_ini_band_params_2 {
 	unsigned char rx_trace_insertion_loss;
 	unsigned char tx_trace_loss[WL1271_INI_CHANNEL_COUNT_2];
 	unsigned char
 		rx_rssi_process_compens[WL1271_INI_RSSI_PROCESS_COMPENS_SIZE];
 } __attribute__((packed));
+
+#define WL1271_INI_RATE_GROUP_COUNT 6
 
 struct wl1271_ini_fem_params_2 {
 	__le16 tx_bip_ref_pd_voltage;
@@ -101,29 +102,26 @@ struct wl1271_ini_fem_params_2 {
 	unsigned char normal_to_degraded_high_thr;
 } __attribute__((packed));
 
-#define WL1271_INI_RATE_GROUP_COUNT_WL128x 7
+#define WL128X_INI_RATE_GROUP_COUNT 7
 /* low and high temperatures*/
-#define WL1271_INI_PD_VS_TEMPERATURE_RANGES 2
+#define WL128X_INI_PD_VS_TEMPERATURE_RANGES 2
 
-struct wl1271_ini_fem_params_2_wl128x {
+struct wl128x_ini_fem_params_2 {
 	__le16 tx_bip_ref_pd_voltage;
 	unsigned char tx_bip_ref_power;
 	unsigned char tx_bip_ref_offset;
 	unsigned char
-		tx_per_rate_pwr_limits_normal
-			[WL1271_INI_RATE_GROUP_COUNT_WL128x];
+		tx_per_rate_pwr_limits_normal [WL128X_INI_RATE_GROUP_COUNT];
 	unsigned char
-		tx_per_rate_pwr_limits_degraded
-			[WL1271_INI_RATE_GROUP_COUNT_WL128x];
+		tx_per_rate_pwr_limits_degraded [WL128X_INI_RATE_GROUP_COUNT];
 	unsigned char
-		tx_per_rate_pwr_limits_extreme
-			[WL1271_INI_RATE_GROUP_COUNT_WL128x];
+		tx_per_rate_pwr_limits_extreme [WL128X_INI_RATE_GROUP_COUNT];
 	unsigned char tx_per_chan_pwr_limits_11b[WL1271_INI_CHANNEL_COUNT_2];
 	unsigned char tx_per_chan_pwr_limits_ofdm[WL1271_INI_CHANNEL_COUNT_2];
-	unsigned char tx_pd_vs_rate_offsets[WL1271_INI_RATE_GROUP_COUNT_WL128x];
-	unsigned char tx_ibias[WL1271_INI_RATE_GROUP_COUNT_WL128x + 1];
+	unsigned char tx_pd_vs_rate_offsets[WL128X_INI_RATE_GROUP_COUNT];
+	unsigned char tx_ibias[WL128X_INI_RATE_GROUP_COUNT + 1];
 	unsigned char tx_pd_vs_chan_offsets[WL1271_INI_CHANNEL_COUNT_2];
-	unsigned char tx_pd_vs_temperature[WL1271_INI_PD_VS_TEMPERATURE_RANGES];
+	unsigned char tx_pd_vs_temperature[WL128X_INI_PD_VS_TEMPERATURE_RANGES];
 	unsigned char rx_fem_insertion_loss;
 	unsigned char degraded_low_to_normal_thr;
 	unsigned char normal_to_degraded_high_thr;
@@ -139,7 +137,7 @@ struct wl1271_ini_band_params_5 {
 		rx_rssi_process_compens[WL1271_INI_RSSI_PROCESS_COMPENS_SIZE];
 } __attribute__((packed));
 
-struct wl1271_ini_band_params_5_wl128x {
+struct wl128x_ini_band_params_5 {
 	unsigned char rx_trace_insertion_loss[WL1271_INI_SUB_BAND_COUNT_5];
 	unsigned char tx_trace_loss[WL1271_INI_CHANNEL_COUNT_5];
 	unsigned char
@@ -164,25 +162,22 @@ struct wl1271_ini_fem_params_5 {
 	unsigned char normal_to_degraded_high_thr;
 } __attribute__((packed));
 
-struct wl1271_ini_fem_params_5_wl128x {
+struct wl128x_ini_fem_params_5 {
 	__le16 tx_bip_ref_pd_voltage[WL1271_INI_SUB_BAND_COUNT_5];
 	unsigned char tx_bip_ref_power[WL1271_INI_SUB_BAND_COUNT_5];
 	unsigned char tx_bip_ref_offset[WL1271_INI_SUB_BAND_COUNT_5];
 	unsigned char
-		tx_per_rate_pwr_limits_normal
-			[WL1271_INI_RATE_GROUP_COUNT_WL128x];
+		tx_per_rate_pwr_limits_normal [WL128X_INI_RATE_GROUP_COUNT];
 	unsigned char
-		tx_per_rate_pwr_limits_degraded
-			[WL1271_INI_RATE_GROUP_COUNT_WL128x];
+		tx_per_rate_pwr_limits_degraded [WL128X_INI_RATE_GROUP_COUNT];
 	unsigned char
-		tx_per_rate_pwr_limits_extreme
-			[WL1271_INI_RATE_GROUP_COUNT_WL128x];
+		tx_per_rate_pwr_limits_extreme [WL128X_INI_RATE_GROUP_COUNT];
 	unsigned char tx_per_chan_pwr_limits_ofdm[WL1271_INI_CHANNEL_COUNT_5];
-	unsigned char tx_pd_vs_rate_offsets[WL1271_INI_RATE_GROUP_COUNT_WL128x];
-	unsigned char tx_ibias[WL1271_INI_RATE_GROUP_COUNT_WL128x];
+	unsigned char tx_pd_vs_rate_offsets[WL128X_INI_RATE_GROUP_COUNT];
+	unsigned char tx_ibias[WL128X_INI_RATE_GROUP_COUNT];
 	unsigned char tx_pd_vs_chan_offsets[WL1271_INI_CHANNEL_COUNT_5];
 	unsigned char tx_pd_vs_temperature[WL1271_INI_SUB_BAND_COUNT_5 *
-		WL1271_INI_PD_VS_TEMPERATURE_RANGES];
+		WL128X_INI_PD_VS_TEMPERATURE_RANGES];
 	unsigned char rx_fem_insertion_loss[WL1271_INI_SUB_BAND_COUNT_5];
 	unsigned char degraded_low_to_normal_thr;
 	unsigned char normal_to_degraded_high_thr;
@@ -220,18 +215,18 @@ struct wl128x_nvs_file {
 	unsigned char nvs[WL1271_INI_NVS_SECTION_SIZE];
 
 	/* INI section */
-	struct wl1271_ini_general_params_wl128x general_params;
+	struct wl128x_ini_general_params general_params;
 	unsigned char fem_vendor_and_options;
-	struct wl1271_ini_band_params_2_wl128x stat_radio_params_2;
+	struct wl128x_ini_band_params_2 stat_radio_params_2;
 	unsigned char padding2;
 	struct {
-		struct wl1271_ini_fem_params_2_wl128x params;
+		struct wl128x_ini_fem_params_2 params;
 		unsigned char padding;
 	} dyn_radio_params_2[WL1271_INI_FEM_MODULE_COUNT];
-	struct wl1271_ini_band_params_5_wl128x stat_radio_params_5;
+	struct wl128x_ini_band_params_5 stat_radio_params_5;
 	unsigned char padding3;
 	struct {
-		struct wl1271_ini_fem_params_5_wl128x params;
+		struct wl128x_ini_fem_params_5 params;
 		unsigned char padding;
 	} dyn_radio_params_5[WL1271_INI_FEM_MODULE_COUNT];
 } __attribute__((packed));
@@ -254,18 +249,18 @@ struct wl1271_ini {
 } __attribute__((packed));
 
 struct wl128x_ini {
-	struct wl1271_ini_general_params_wl128x general_params;
+	struct wl128x_ini_general_params general_params;
 	unsigned char fem_vendor_and_options;
-	struct wl1271_ini_band_params_2_wl128x stat_radio_params_2;
+	struct wl128x_ini_band_params_2 stat_radio_params_2;
 	unsigned char padding2;
 	struct {
-		struct wl1271_ini_fem_params_2_wl128x params;
+		struct wl128x_ini_fem_params_2 params;
 		unsigned char padding;
 	} dyn_radio_params_2[WL1271_INI_FEM_MODULE_COUNT];
-	struct wl1271_ini_band_params_5_wl128x stat_radio_params_5;
+	struct wl128x_ini_band_params_5 stat_radio_params_5;
 	unsigned char padding3;
 	struct {
-		struct wl1271_ini_fem_params_5_wl128x params;
+		struct wl128x_ini_fem_params_5 params;
 		unsigned char padding;
 	} dyn_radio_params_5[WL1271_INI_FEM_MODULE_COUNT];
 } __attribute__((packed));
