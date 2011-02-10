@@ -126,7 +126,8 @@ int file_exist(const char *filename)
 
 	ret = stat(filename, &buf);
 	if (ret != 0) {
-		fprintf(stderr, "fail to stat (%s)\n", strerror(errno));
+		fprintf(stderr, "fail to stat file %s (%s)\n", filename,
+			strerror(errno));
 		return -1;
 	}
 
