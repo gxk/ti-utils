@@ -12,11 +12,12 @@ OBJS = nvs.o misc_cmds.o calibrator.o plt.o ini.o
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 all: $(OBJS) 
+	$(CC) $(LDFLAGS) --static $(OBJS) $(LIBS) -o calibrator.bin
 	$(CC) $(LDFLAGS) $(OBJS) $(LIBS) -o calibrator
-	#$(CC) -static $(LDFLAGS) $(OBJS) $(LIB) -o calibrator.bin
 
 install:
 	@cp -f ./calibrator $(NFSROOT)/home/root
+	@cp -f ./calibrator.bin $(NFSROOT)/home/root
 
 clean:
 	@rm -f *.o calibrator
