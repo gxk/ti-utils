@@ -24,6 +24,7 @@
 
 #include "calibrator.h"
 #include "plt.h"
+#include "ini.h"
 
 SECTION(plt);
 
@@ -195,15 +196,15 @@ static int calib_valid_handler(struct nl_msg *msg, void *arg)
 		}
 		printf("++++++++++++++++++++++++\n");
 #endif
-	if (prepare_nvs_file(prms)) {
+	if (prepare_nvs_file(prms, (struct wl12xx_common *)arg)) {
 		fprintf(stderr, "Fail to prepare new NVS file\n");
 		return 2;
 	}
-
+#if 0
 	printf("\n\tThe NVS file (%s) is ready\n\tCopy it to %s and "
 		"reboot the system\n\n",
 		NEW_NVS_NAME, CURRENT_NVS_NAME);
-
+#endif
 	return NL_SKIP;
 }
 
@@ -213,14 +214,24 @@ static int plt_tx_bip(struct nl80211_state *state, struct nl_cb *cb,
 	struct nlattr *key;
 	struct wl1271_cmd_cal_p2g prms;
 	int i; unsigned char *pc;
+	struct wl12xx_common cmn = {
+		.arch = UNKNOWN_ARCH,
+		.parse_ops = NULL,
+		.nvs_ops = NULL
+	};
 
-	if (argc != 8)
+	if (argc < 8)
 		return 1;
+
+	if (argc > 8)
+		strncpy(cmn.nvs_path, argv[8], strlen(argv[8]));
+	else
+		cmn.nvs_path[0] = '\0';
 
 	memset(&prms, 0, sizeof(struct wl1271_cmd_cal_p2g));
 
 	prms.test.id = TEST_CMD_P2G_CAL;
-	for (i = 0; i < argc; i++)
+	for (i = 0; i < 8; i++)
 		prms.sub_band_mask |= (atoi(argv[i]) & 0x1)<<i;
 
 	key = nla_nest_start(msg, NL80211_ATTR_TESTDATA);
@@ -235,7 +246,7 @@ static int plt_tx_bip(struct nl80211_state *state, struct nl_cb *cb,
 
 	nla_nest_end(msg, key);
 
-	nl_cb_set(cb, NL_CB_VALID, NL_CB_CUSTOM, calib_valid_handler, NULL);
+	nl_cb_set(cb, NL_CB_VALID, NL_CB_CUSTOM, calib_valid_handler, &cmn);
 
 	return 0;
 
@@ -244,7 +255,8 @@ nla_put_failure:
 	return 2;
 }
 
-COMMAND(plt, tx_bip, "<0|1> <0|1> <0|1> <0|1> <0|1> <0|1> <0|1> <0|1>",
+COMMAND(plt, tx_bip,
+	"<0|1> <0|1> <0|1> <0|1> <0|1> <0|1> <0|1> <0|1> [<nvs file>]",
 	NL80211_CMD_TESTMODE, 0, CIB_NETDEV, plt_tx_bip,
 	"Do calibrate.\n");
 
@@ -588,9 +600,9 @@ static int plt_calibrate(struct nl80211_state *state, struct nl_cb *cb,
 			struct nl_msg *msg, int argc, char **argv)
 {
 	int ret;
-	int single_dual;
+	int single_dual = 0;
 
-	if (argc == 3 && (strncmp(argv[2], "dual", 4) ==  0))
+	if (argc > 2 && (strncmp(argv[2], "dual", 4) ==  0))
 		single_dual = 1;	/* going for dual band calibration */
 	else
 		single_dual = 0;	/* going for single band calibration */
@@ -621,22 +633,7 @@ static int plt_calibrate(struct nl80211_state *state, struct nl_cb *cb,
 			goto fail_out;
 		}
 	}
-#if 0
-	/* reference point */
-	{
-		int err;
-		char *pm_on[6] = {
-			"wlan0", "plt", "ref_point", "375", "128", "0"
-		};
 
-		err = handle_cmd(state, II_NETDEV, 6, pm_on);
-		if (err < 0) {
-			fprintf(stderr, "Fail to set PLT reference point\n");
-			ret = err;
-			goto fail_out;
-		}
-	}
-#endif
 	/* calibrate it */
 	{
 		int err;

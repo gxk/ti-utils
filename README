@@ -72,7 +72,6 @@ calibrator plt calibrate
 
 Full way:
 calibrator wlan0 plt power_mode on
-calibrator wlan0 plt ref_point <voltage> <power> <subband>
 calibrator wlan0 plt tx_bip <0|1> <0|1> <0|1> <0|1> <0|1> <0|1> <0|1> <0|1>
 calibrator wlan0 plt power_mode off
 

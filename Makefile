@@ -12,12 +12,15 @@ OBJS = nvs.o misc_cmds.o calibrator.o plt.o ini.o
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 all: $(OBJS) 
-	$(CC) $(LDFLAGS) --static $(OBJS) $(LIBS) -o calibrator.bin
 	$(CC) $(LDFLAGS) $(OBJS) $(LIBS) -o calibrator
 
+static: $(OBJS) 
+	$(CC) $(LDFLAGS) --static $(OBJS) $(LIBS) -o calibrator
+
 install:
+	@echo Copy files to $(NFSROOT)/home/root
 	@cp -f ./calibrator $(NFSROOT)/home/root
-	@cp -f ./calibrator.bin $(NFSROOT)/home/root
+	@cp -f ./scripts/go.sh $(NFSROOT)/home/root
 
 clean:
 	@rm -f *.o calibrator

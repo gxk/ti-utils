@@ -216,14 +216,14 @@ static int set_ref_nvs(struct nl80211_state *state, struct nl_cb *cb,
 	cfg_nvs_ops(&cmn);
 
 	if (create_nvs_file(&cmn)) {
-		fprintf(stderr, "Fail to prepare new NVS file\n");
+		fprintf(stderr, "Fail to create reference NVS file\n");
 		return 1;
 	}
-
+#if 0
 	printf("\n\tThe NVS file (%s) is ready\n\tCopy it to %s and "
 		"reboot the system\n\n",
 		NEW_NVS_NAME, CURRENT_NVS_NAME);
-
+#endif
 	return 0;
 }
 
@@ -256,13 +256,13 @@ static int set_upd_nvs(struct nl80211_state *state, struct nl_cb *cb,
 		fname = *++argv;
 
 	if (update_nvs_file(fname, &cmn)) {
-		fprintf(stderr, "Fail to prepare new NVS file\n");
+		fprintf(stderr, "Fail to update NVS file\n");
 		return 1;
 	}
-
+#if 0
 	printf("\n\tThe updated NVS file (%s) is ready\n\tCopy it to %s and "
 		"reboot the system\n\n", NEW_NVS_NAME, CURRENT_NVS_NAME);
-
+#endif
 	return 0;
 }
 
@@ -285,7 +285,7 @@ static int get_dump_nvs(struct nl80211_state *state, struct nl_cb *cb,
 		fname = *argv;
 
 	if (dump_nvs_file(fname, &cmn)) {
-		fprintf(stderr, "Fail to prepare new NVS file\n");
+		fprintf(stderr, "Fail to dump NVS file\n");
 		return 1;
 	}
 

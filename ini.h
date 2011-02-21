@@ -24,6 +24,8 @@
 #ifndef __INI_H__
 #define __INI_H__
 
+#include <linux/limits.h>
+
 #define WL1271_INI_MAX_SMART_REFLEX_PARAM 16
 
 struct wl1271_ini_general_params {
@@ -294,6 +296,7 @@ struct wl12xx_common {
 	struct wl12xx_parse_ops *parse_ops;
 	struct wl12xx_nvs_ops   *nvs_ops;
 	struct wl12xx_ini ini;
+	unsigned char nvs_path[PATH_MAX];
 };
 
 struct wl12xx_parse_ops {

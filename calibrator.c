@@ -25,7 +25,7 @@
 #include "plt.h"
 #include "ini.h"
 
-char calibrator_version[] = "0.3";
+char calibrator_version[] = "0.4";
 #ifndef CONFIG_LIBNL20
 /* libnl 2.0 compatibility code */
 
@@ -274,14 +274,14 @@ static int __handle_cmd(struct nl80211_state *state, enum id_input idby,
 	const char *command, *section;
 	char *tmp, **o_argv;
 	enum command_identify_by command_idby = CIB_NONE;
-
+#if 0
 	if (file_exist(CURRENT_NVS_NAME) < 0) {
 		fprintf(stderr, "\n\tUnable to find NVS file (%s).\n\t"
 			"Make sure to use reference-nvs.bin instead.\n\n",
 			CURRENT_NVS_NAME);
 		return 2;
 	}
-
+#endif
 	if (argc <= 1)
 		return 1;
 

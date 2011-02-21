@@ -175,8 +175,8 @@ int read_nvs(const unsigned char *nvs_file, char *buf, int size, int *nvs_sz)
 	char file2read[FILENAME_MAX];
 
 	if (nvs_file == NULL) {
-		printf("The path to NVS file not provided."
-			"Will use default (%s)\n", CURRENT_NVS_NAME);
+		printf("\nThe path to NVS file not provided, "
+			"use default (%s)\n", CURRENT_NVS_NAME);
 
 		strncpy(file2read, CURRENT_NVS_NAME, strlen(CURRENT_NVS_NAME));
 
@@ -306,7 +306,9 @@ static int nvs_upd_nvs_part(int fd, char *buf)
 static int nvs_fill_nvs_part(int fd)
 {
 	int i;
-	unsigned char mac_addr[MAC_ADDR_LEN];
+	unsigned char mac_addr[MAC_ADDR_LEN] = {
+		 0x0b, 0xad, 0xde, 0xad, 0xbe, 0xef
+	};
 	__le16 nvs_tx_sz = NVS_TX_PARAM_LENGTH;
 	__le32 nvs_ver = 0x0;
 	const unsigned char vals[] = {
@@ -316,12 +318,12 @@ static int nvs_fill_nvs_part(int fd)
 	write(fd, &vals[1], 1);
 	write(fd, &vals[2], 1);
 	write(fd, &vals[3], 1);
-
+#if 0
 	if (get_mac_addr(0, mac_addr)) {
 		fprintf(stderr, "%s> Fail to get mac address\n", __func__);
 		return 1;
 	}
-
+#endif
 	/* write down MAC address in new NVS file */
 	write(fd, &mac_addr[5], 1);
 	write(fd, &mac_addr[4], 1);
@@ -390,7 +392,7 @@ int nvs_fill_version(int fd, unsigned int *pdata)
 	return 0;
 }
 
-int prepare_nvs_file(void *arg)
+int prepare_nvs_file(void *arg, struct wl12xx_common *cmn)
 {
 	int new_nvs, i, nvs_size;
 	unsigned char mac_addr[MAC_ADDR_LEN];
@@ -398,11 +400,7 @@ int prepare_nvs_file(void *arg)
 	struct wl1271_cmd_cal_p2g old_data[eNUMBER_RADIO_TYPE_PARAMETERS_INFO];
 	unsigned char buf[2048];
 	unsigned char *p;
-	struct wl12xx_common cmn = {
-		.arch = UNKNOWN_ARCH,
-		.parse_ops = NULL,
-		.nvs_ops = NULL
-	};
+
 	const unsigned char vals[] = {
 		0x0, 0x1, 0x6d, 0x54, 0x71, eTLV_LAST, eNVS_RADIO_TX_PARAMETERS
 	};
@@ -412,22 +410,22 @@ int prepare_nvs_file(void *arg)
 		return 1;
 	}
 
-	if (read_nvs(NULL, buf, BUF_SIZE_4_NVS_FILE, &nvs_size))
+	if (read_nvs(cmn->nvs_path, buf, BUF_SIZE_4_NVS_FILE, &nvs_size))
 		return 1;
 
 	switch (nvs_size) {
 	case NVS_FILE_SIZE_127X:
-		cmn.arch = WL1271_ARCH;
+		cmn->arch = WL1271_ARCH;
 		break;
 	case NVS_FILE_SIZE_128X:
-		cmn.arch = WL128X_ARCH;
+		cmn->arch = WL128X_ARCH;
 		break;
 	default:
 		fprintf(stderr, "%s> Wrong file size\n", __func__);
 		return 1;
 	}
 
-	cfg_nvs_ops(&cmn);
+	cfg_nvs_ops(cmn);
 
 	/* create new NVS file */
 	new_nvs = open(NEW_NVS_NAME,
@@ -515,7 +513,7 @@ int prepare_nvs_file(void *arg)
 	write(new_nvs, &vals[0], 1);
 
 	/* fill radio params */
-	if (cmn.nvs_ops->nvs_fill_radio_prms(new_nvs, NULL, buf))
+	if (cmn->nvs_ops->nvs_fill_radio_prms(new_nvs, NULL, buf))
 		fprintf(stderr, "Fail to fill radio params\n");
 
 	close(new_nvs);
