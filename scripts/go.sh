@@ -9,7 +9,7 @@
 #  32 - calibrate				0010 0000
 #  64 - 1-command calibration			0100 0000
 
-go_version="0.5"
+go_version="0.6"
 usage()
 {
 	echo -e "\tUSAGE:\n\t    `basename $0` <option> [value]"
@@ -149,6 +149,9 @@ case $bootlevel in
 	;;
 	4) stage_quattro=`expr $stage_quattro + 1`
 	;;
+	5) stage_uno=`expr $stage_uno + 1`
+	   stage_quattro=`expr $stage_quattro + 1`
+	;;
 	6) stage_due=`expr $stage_due + 1`
 	   stage_quattro=`expr $stage_quattro + 1`
 	;;
@@ -170,8 +173,9 @@ case $bootlevel in
 	;;
 	64) stage_sessanta_quattro=`expr $stage_sessanta_quattro + 1`
 	;;
-	66) stage_sessanta_quattro=`expr $stage_sessanta_quattro + 1`
+	66)
 	    stage_due=`expr $stage_due + 1`
+	    stage_sessanta_quattro=`expr $stage_sessanta_quattro + 1`
 	;;
 esac
 
@@ -180,10 +184,16 @@ echo -e "\t---===<<<((( WELCOME )))>>>===---\n"
 echo -e "\t------------         ------------\n"
 
 if [ "$stage_uno" -ne "0" ]; then
-	echo 8 > /proc/sys/kernel/printk
-	/libexec/inetd /etc/inetd.conf &
 
-	mount -t debugfs debugfs /debug
+	echo 8 > /proc/sys/kernel/printk
+
+	if [ -e /libexec/inetd ]; then
+		/libexec/inetd /etc/inetd.conf &
+	fi
+
+	if [ ! -e /debug/tracing ]; then
+		mount -t debugfs debugfs /debug
+	fi
 
 	echo -e "\t---===<<<((( Level 1 )))>>>===---\n"
 fi
@@ -211,6 +221,7 @@ if [ "$stage_due" -ne "0" ]; then
 fi
 
 if [ "$stage_quattro" -ne "0" ]; then
+
 	run_it=`cat /proc/modules | grep "wl12xx"`
 	if [ "$run_it" == "" ]; then
 		insmod /lib/modules/`uname -r`/kernel/drivers/net/wireless/wl12xx/wl12xx.ko
@@ -233,15 +244,21 @@ if [ "$stage_quattro" -ne "0" ]; then
 	echo 1 > /debug/tracing/events/mac80211/enable
 	#cat /debug/tracing/trace
 
-	#ifconfig wlan0 hw ether $mac_addr
-	sleep 1
+	ifconfig wlan0 hw ether $mac_addr
+	#sleep 1
 	#cat /debug/mmc2/ios
 
 	echo -e "\t---===<<<((( Level 4 )))>>>===---\n"
 fi
 
 if [ "$stage_otto" -ne "0" ]; then
+
 	ifconfig wlan0 up
+	if [ "$?" != "0" ]; then
+		echo -e "Fail to start iface"
+		exit 1
+	fi
+
 	iw event > /var/log/iwevents &
 
 	#wpa_supplicant -P/var/run/wpa_supplicant.pid -iwlan0 -c/etc/wpa_supplicant.conf -Dnl80211 -f/var/log/wpa_supplicant.log &
@@ -270,7 +287,7 @@ if [ "$stage_sessanta_quattro" -ne "0" ]; then
 		exit 1
 	fi
 
-	# 1. load needed kernel modules
+	# 1. unload wl12xx kernel modules
 	run_it=`cat /proc/modules | grep "wl12xx_sdio"`
 	if [ "$run_it" != "" ]; then
 		rmmod wl12xx_sdio
@@ -288,7 +305,7 @@ if [ "$stage_sessanta_quattro" -ne "0" ]; then
 	echo -e "+++ Copy reference NVS file to $path_to_install"
 	run_it=`cp -f ./new-nvs.bin $path_to_install`
 
-	# 4. load wl12xx driver
+	# 4. load wl12xx kernel modules
 	echo -e "+++ Load wl12xx driver"
 	run_it=`cat /proc/modules | grep "wl12xx"`
 	if [ "$run_it" == "" ]; then
@@ -324,9 +341,17 @@ if [ "$stage_sessanta_quattro" -ne "0" ]; then
 
 	run_it=`cat $path_to_ini | grep "RxTraceInsertionLoss_5G"`
 	if [ "$run_it" != "" ]; then
-		run_it=`./calibrator wlan0 plt tx_bip 1 1 1 1 1 1 1 1 $path_to_install`
+		./calibrator wlan0 plt tx_bip 1 1 1 1 1 1 1 1 $path_to_install
+		if [ "$?" != "0" ]; then
+			echo -e "Fail to calibrate"
+			exit 1
+		fi
 	else
-		run_it=`./calibrator wlan0 plt tx_bip 1 0 0 0 0 0 0 0 $path_to_install`
+		./calibrator wlan0 plt tx_bip 1 0 0 0 0 0 0 0 $path_to_install
+		if [ "$?" != "0" ]; then
+			echo -e "Fail to calibrate"
+			exit 1
+		fi
 	fi
 
 	./calibrator wlan0 plt power_mode off
@@ -335,23 +360,16 @@ if [ "$stage_sessanta_quattro" -ne "0" ]; then
 		exit 1
 	fi
 
-	# 6. copy calibrated NVS file to proper place
+	# 6. unload wl12xx kernel modules
+	rmmod wl12xx_sdio wl12xx
+
+	# 7. copy calibrated NVS file to proper place
 	echo -e "+++ Copy calibrated NVS file to $path_to_install"
 	run_it=`cp -f ./new-nvs.bin $path_to_install`
 
-	# 7. reload driver
-	echo -e "+++ Reload wl12xx driver"
-	run_it=`rmmod wl12xx_sdio wl12xx`
-	insmod /lib/modules/`uname -r`/kernel/drivers/net/wireless/wl12xx/wl12xx.ko
-	if [ "$?" != "0" ]; then
-		echo -e "Fail to load wl12xx"
-		exit 1
-	fi
-	insmod /lib/modules/`uname -r`/kernel/drivers/net/wireless/wl12xx/wl12xx_sdio.ko
-	if [ "$?" != "0" ]; then
-		echo -e "Fail to load wl12xx_sdio"
-		exit 1
-	fi
+	# 7. load wl12xx kernel modules
+
+	sh $0 -b 5
 
 	echo -e "\n\tDear Customer, you are ready to use our calibrated device\n"
 fi

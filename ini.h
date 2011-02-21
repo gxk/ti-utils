@@ -296,7 +296,6 @@ struct wl12xx_common {
 	struct wl12xx_parse_ops *parse_ops;
 	struct wl12xx_nvs_ops   *nvs_ops;
 	struct wl12xx_ini ini;
-	unsigned char nvs_path[PATH_MAX];
 };
 
 struct wl12xx_parse_ops {

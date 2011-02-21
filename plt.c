@@ -196,8 +196,8 @@ static int calib_valid_handler(struct nl_msg *msg, void *arg)
 		}
 		printf("++++++++++++++++++++++++\n");
 #endif
-	if (prepare_nvs_file(prms, (struct wl12xx_common *)arg)) {
-		fprintf(stderr, "Fail to prepare new NVS file\n");
+	if (prepare_nvs_file(prms, arg)) {
+		fprintf(stderr, "Fail to prepare calibrated NVS file\n");
 		return 2;
 	}
 #if 0
@@ -214,19 +214,15 @@ static int plt_tx_bip(struct nl80211_state *state, struct nl_cb *cb,
 	struct nlattr *key;
 	struct wl1271_cmd_cal_p2g prms;
 	int i; unsigned char *pc;
-	struct wl12xx_common cmn = {
-		.arch = UNKNOWN_ARCH,
-		.parse_ops = NULL,
-		.nvs_ops = NULL
-	};
+	unsigned char nvs_path[PATH_MAX];
 
 	if (argc < 8)
 		return 1;
 
 	if (argc > 8)
-		strncpy(cmn.nvs_path, argv[8], strlen(argv[8]));
+		strncpy(nvs_path, argv[8], strlen(argv[8]));
 	else
-		cmn.nvs_path[0] = '\0';
+		nvs_path[0] = '\0';
 
 	memset(&prms, 0, sizeof(struct wl1271_cmd_cal_p2g));
 
@@ -246,7 +242,7 @@ static int plt_tx_bip(struct nl80211_state *state, struct nl_cb *cb,
 
 	nla_nest_end(msg, key);
 
-	nl_cb_set(cb, NL_CB_VALID, NL_CB_CUSTOM, calib_valid_handler, &cmn);
+	nl_cb_set(cb, NL_CB_VALID, NL_CB_CUSTOM, calib_valid_handler, nvs_path);
 
 	return 0;
 
