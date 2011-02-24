@@ -191,8 +191,8 @@ if [ "$stage_uno" -ne "0" ]; then
 		/libexec/inetd /etc/inetd.conf &
 	fi
 
-	if [ ! -e /debug/tracing ]; then
-		mount -t debugfs debugfs /debug
+	if [ ! -e /sys/kernel/debug/tracing ]; then
+		mount -t debugfs none /sys/kernel/debug/
 	fi
 
 	echo -e "\t---===<<<((( Level 1 )))>>>===---\n"
@@ -241,12 +241,12 @@ if [ "$stage_quattro" -ne "0" ]; then
 	fi
 	#insmod /lib/modules/`uname -r`/kernel/drivers/net/wireless/wl12xx/wl12xx_sdio.ko ref_clk=$2
 	sleep 1
-	echo 1 > /debug/tracing/events/mac80211/enable
-	#cat /debug/tracing/trace
+	echo 1 > /sys/kernel/debug/tracing/events/mac80211/enable
+	#cat /sys/kernel/debug/tracing/trace
 
 	ifconfig wlan0 hw ether $mac_addr
 	#sleep 1
-	#cat /debug/mmc2/ios
+	#cat /sys/kernel/debug/mmc2/ios
 
 	echo -e "\t---===<<<((( Level 4 )))>>>===---\n"
 fi
@@ -380,7 +380,7 @@ if [ "$dbg_lvl" -eq "-1" ] && [ -e /sys/module/wl12xx/parameters/debug_level ]; 
 elif [ "$dbg_lvl" -ne "0" ] && [ -e /sys/module/wl12xx/parameters/debug_level ]; then
 	echo "$dbg_lvl" > /sys/module/wl12xx/parameters/debug_level
 
-	echo 'module wl12xx +p' > /debug/dynamic_debug/control
+	echo 'module wl12xx +p' > /sys/kernel/debug/dynamic_debug/control
 fi
 
 if [ "$set_ip_addr" -ne "0" ]; then
