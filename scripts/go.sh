@@ -241,8 +241,10 @@ if [ "$stage_quattro" -ne "0" ]; then
 	fi
 	#insmod /lib/modules/`uname -r`/kernel/drivers/net/wireless/wl12xx/wl12xx_sdio.ko ref_clk=$2
 	sleep 1
-	echo 1 > /sys/kernel/debug/tracing/events/mac80211/enable
-	#cat /sys/kernel/debug/tracing/trace
+	if [ -e /sys/kernel/debug/tracing ]; then
+		echo 1 > /sys/kernel/debug/tracing/events/mac80211/enable
+		#cat /sys/kernel/debug/tracing/trace
+	fi
 
 	ifconfig wlan0 hw ether $mac_addr
 	#sleep 1

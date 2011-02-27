@@ -14,6 +14,9 @@ OBJS = nvs.o misc_cmds.o calibrator.o plt.o ini.o
 all: $(OBJS) 
 	$(CC) $(LDFLAGS) $(OBJS) $(LIBS) -o calibrator
 
+uim:
+	$(CC) $(CFLAGS) $(LDFLAGS) $@.c -o $@
+
 static: $(OBJS) 
 	$(CC) $(LDFLAGS) --static $(OBJS) $(LIBS) -o calibrator
 
