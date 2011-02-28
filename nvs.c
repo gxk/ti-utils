@@ -13,6 +13,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <stdbool.h>
+#include <netinet/in.h>
 
 #include <netlink/genl/genl.h>
 #include <netlink/genl/family.h>
@@ -25,7 +26,6 @@
 #include "calibrator.h"
 #include "plt.h"
 #include "ini.h"
-
 /* 2048 - it should be enough for any chip, until... 22dec2010 */
 #define BUF_SIZE_4_NVS_FILE	2048
 

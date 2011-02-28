@@ -1,7 +1,7 @@
 CC = $(CROSS_COMPILE)gcc
 CFLAGS = -O2
 CFLAGS += -DCONFIG_LIBNL20
-CFLAGS += -I$(NFSROOT)/include
+CFLAGS += -I$(NFSROOT)/usr/include
 
 LDFLAGS += -L$(NFSROOT)/lib
 LIBS += -lnl -lnl-genl -lm
@@ -26,4 +26,4 @@ install:
 	@cp -f ./scripts/go.sh $(NFSROOT)/home/root
 
 clean:
-	@rm -f *.o calibrator uim_rfkill/uim
+	@rm -f *.o calibrator uim

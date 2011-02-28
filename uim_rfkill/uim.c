@@ -32,8 +32,14 @@
 #include <cutils/log.h>
 #endif
 
-// #include <common/ppoll.h> /* for ppoll */ - removed by guye
+#ifdef ANDROID
+#include <common/ppoll.h> /* for ppoll */
+#endif
 #include "uim.h"
+
+#ifndef ANDROID
+#define INCLUDE_FM 0
+#endif
 
 /* Maintains the exit state of UIM*/
 static int exiting;
@@ -87,7 +93,7 @@ enum rfkill_operation {
  * Structure used for userspace communication on /dev/rfkill,
  * used for events from the kernel and control to the kernel.
  */
-#ifdef ANDROID // changes by guye
+#ifdef ANDROID
 struct rfkill_event {
 	__u32 idx;
 	__u8  type;
@@ -565,6 +571,15 @@ int remove_modules()
 	}
 	UIM_DBG(" Removed st_drv module ");
 #else
+#if INCLUDE_FM
+	UIM_VER(" Removing fm_drv ");
+	if (system("rmmod fm_drv") != 0) {
+		UIM_ERR(" Error removing fm_drv module");
+		err = -1;
+	} else {
+		UIM_DBG(" Removed fm_drv module");
+	}
+#endif /* INCLUDE_FM */
 	UIM_VER(" Removing bt_drv ");
 	if (system("rmmod bt_drv") != 0) {
 		UIM_ERR(" Error removing bt_drv module");
@@ -609,7 +624,7 @@ int change_rfkill_perms(void)
 	if (id == 50) {
 		return -1;
 	}
-#ifdef ANDROID // added by guye
+#ifdef ANDROID
 	sprintf(path, "/sys/class/rfkill/rfkill%d/state", id);
 	sz = chown(path, AID_BLUETOOTH, AID_BLUETOOTH);
 	if (sz < 0) {
@@ -790,6 +805,25 @@ int main(int argc, char *argv[])
 	}
 	free(tist_ko_path);
 
+#if INCLUDE_FM
+	/*-- Insmod of FM driver --*/
+	asprintf(&tist_ko_path,
+			"/lib/modules/%s/kernel/drivers/staging/ti-st/fm_drv.ko",name.release);
+	if (0 == lstat(tist_ko_path, &file_stat)) {
+		if (system("insmod /lib/modules/`uname -r`/kernel/drivers/staging/ti-st/fm_drv.ko") != 0) {
+			UIM_ERR(" Error inserting fm_drv module");
+			system("rmmod bt_drv");
+			system("rmmod st_drv");
+			free(tist_ko_path);
+			return -1;
+		} else {
+			UIM_DBG(" Inserted fm_drv module");
+		}
+	} else {
+		UIM_ERR("FM driver built into the kernel ?");
+	}
+	free(tist_ko_path);
+#endif /* INCLUDE_FM */
 #else  /* if ANDROID */
 	if (0 == lstat("/bt_drv.ko", &file_stat)) {
 		if (insmod("/bt_drv.ko", "") < 0) {
@@ -850,11 +884,11 @@ int main(int argc, char *argv[])
 RE_POLL:
 	while (!exiting) {
 		p.revents = 0;
-#if 0 // changes by guye
+#ifdef ANDROID
 		err = ppoll(&p, 1, NULL, &sigs);
 #else
 		err = poll(&p, 1, -1);
-#endif
+#endif /* ANDROID */
 		if (err < 0 && errno == EINTR)
 			continue;
 		if (err)
