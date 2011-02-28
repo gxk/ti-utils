@@ -15,7 +15,7 @@ all: $(OBJS)
 	$(CC) $(LDFLAGS) $(OBJS) $(LIBS) -o calibrator
 
 uim:
-	$(CC) $(CFLAGS) $(LDFLAGS) $@.c -o $@
+	$(CC) $(CFLAGS) $(LDFLAGS) uim_rfkill/$@.c -o $@
 
 static: $(OBJS) 
 	$(CC) $(LDFLAGS) --static $(OBJS) $(LIBS) -o calibrator
@@ -26,4 +26,4 @@ install:
 	@cp -f ./scripts/go.sh $(NFSROOT)/home/root
 
 clean:
-	@rm -f *.o calibrator
+	@rm -f *.o calibrator uim_rfkill/uim

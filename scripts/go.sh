@@ -184,6 +184,7 @@ echo -e "\t---===<<<((( WELCOME )))>>>===---\n"
 echo -e "\t------------         ------------\n"
 
 if [ "$stage_uno" -ne "0" ]; then
+	echo -e "+++ Mount the debugfs on /sys/kernel/debug"
 
 	echo 8 > /proc/sys/kernel/printk
 
@@ -194,11 +195,10 @@ if [ "$stage_uno" -ne "0" ]; then
 	if [ ! -e /sys/kernel/debug/tracing ]; then
 		mount -t debugfs none /sys/kernel/debug/
 	fi
-
-	echo -e "\t---===<<<((( Level 1 )))>>>===---\n"
 fi
 
 if [ "$stage_due" -ne "0" ]; then
+	echo -e "+++ Load mac80211, cfg80211, crc7 and firmware_class"
 
 	run_it=`cat /proc/modules | grep "cfg80211"`
 	if [ "$run_it" == "" ]; then
@@ -216,11 +216,10 @@ if [ "$stage_due" -ne "0" ]; then
 	if [ "$run_it" == "" ]; then
 		insmod /lib/modules/`uname -r`/kernel/drivers/base/firmware_class.ko
 	fi
-
-	echo -e "\t---===<<<((( Level 2 )))>>>===---\n"
 fi
 
 if [ "$stage_quattro" -ne "0" ]; then
+	echo -e "+++ Load wl12xx driver, enable mac80211 tracing"
 
 	run_it=`cat /proc/modules | grep "wl12xx"`
 	if [ "$run_it" == "" ]; then
@@ -230,7 +229,7 @@ if [ "$stage_quattro" -ne "0" ]; then
 			exit 1
 		fi
 	fi
-	echo -e "+++ Load wl12xx driver"
+
 	run_it=`cat /proc/modules | grep "wl12xx_sdio"`
 	if [ "$run_it" == "" ]; then
 		insmod /lib/modules/`uname -r`/kernel/drivers/net/wireless/wl12xx/wl12xx_sdio.ko
@@ -239,21 +238,18 @@ if [ "$stage_quattro" -ne "0" ]; then
 			exit 1
 		fi
 	fi
-	#insmod /lib/modules/`uname -r`/kernel/drivers/net/wireless/wl12xx/wl12xx_sdio.ko ref_clk=$2
+
 	sleep 1
 	if [ -e /sys/kernel/debug/tracing ]; then
 		echo 1 > /sys/kernel/debug/tracing/events/mac80211/enable
-		#cat /sys/kernel/debug/tracing/trace
 	fi
 
 	ifconfig wlan0 hw ether $mac_addr
-	#sleep 1
 	#cat /sys/kernel/debug/mmc2/ios
-
-	echo -e "\t---===<<<((( Level 4 )))>>>===---\n"
 fi
 
 if [ "$stage_otto" -ne "0" ]; then
+	echo -e "+++ Start interface, enable monitoring events, run wpa_supplicant"
 
 	ifconfig wlan0 up
 	if [ "$?" != "0" ]; then
@@ -261,16 +257,15 @@ if [ "$stage_otto" -ne "0" ]; then
 		exit 1
 	fi
 
+	sleep 1
 	iw event > /var/log/iwevents &
 
-	#wpa_supplicant -P/var/run/wpa_supplicant.pid -iwlan0 -c/etc/wpa_supplicant.conf -Dnl80211 -f/var/log/wpa_supplicant.log &
-	sleep 1
+	#wpa_supplicant -P/var/run/wpa_supplicant.pid -iwlan0
+	#	-c/etc/wpa_supplicant.conf -Dnl80211 -f/var/log/wpa_supplicant.log &
 	#iw wlan0 cqm rssi -55 2
 	#wpa_supplicant -ddt -iwlan0 -c/etc/wpa_supplicant.conf -Dnl80211 -f/var/log/wpa.log &
 	wpa_supplicant -iwlan0 -c/etc/wpa_supplicant.conf -Dnl80211 &
 	#python /usr/share/peripherals-test-autom/dut.py -v &
-
-	echo -e "\t---===<<<((( Level 8 )))>>>===---\n"
 fi
 
 if [ "$stage_sedici" -ne "0" ] && [ "$have_path_to_ini" -ne "0" ]; then
@@ -290,6 +285,7 @@ if [ "$stage_sessanta_quattro" -ne "0" ]; then
 	fi
 
 	# 1. unload wl12xx kernel modules
+	echo -e "+++ Unload wl12xx driver"
 	run_it=`cat /proc/modules | grep "wl12xx_sdio"`
 	if [ "$run_it" != "" ]; then
 		rmmod wl12xx_sdio
@@ -299,7 +295,7 @@ if [ "$stage_sessanta_quattro" -ne "0" ]; then
 		rmmod wl12xx
 	fi
 
-	# 2. create reference NVS file with default MAC (0B:AD:DE:AD:BE:EF)
+	# 2. create reference NVS file with default MAC
 	echo -e "+++ Create reference NVS with INI $path_to_ini"
 	run_it=`./calibrator set ref_nvs $path_to_ini`
 
@@ -317,7 +313,7 @@ if [ "$stage_sessanta_quattro" -ne "0" ]; then
 			exit 1
 		fi
 	fi
-	echo -e "+++ Load wl12xx driver"
+
 	run_it=`cat /proc/modules | grep "wl12xx_sdio"`
 	if [ "$run_it" == "" ]; then
 		insmod /lib/modules/`uname -r`/kernel/drivers/net/wireless/wl12xx/wl12xx_sdio.ko
@@ -365,13 +361,23 @@ if [ "$stage_sessanta_quattro" -ne "0" ]; then
 	# 6. unload wl12xx kernel modules
 	rmmod wl12xx_sdio wl12xx
 
-	# 7. copy calibrated NVS file to proper place
+	# 7. update NVS file with random and valid MAC address
+	echo -e "+++ Update NVS file with random valid MAC address"
+	./calibrator set nvs_mac ./new-nvs.bin
+	if [ "$?" != "0" ]; then
+		echo -e "Fail to set NVS MAC address"
+		exit 1
+	fi
+
+	# 8. copy calibrated NVS file to proper place
 	echo -e "+++ Copy calibrated NVS file to $path_to_install"
 	run_it=`cp -f ./new-nvs.bin $path_to_install`
 
-	# 7. load wl12xx kernel modules
-
-	sh $0 -b 5
+	# 9. load wl12xx kernel modules
+	if [ ! -e /sys/kernel/debug/tracing ]; then
+		mount -t debugfs none /sys/kernel/debug/
+	fi
+	sh $0 -b 4
 
 	echo -e "\n\tDear Customer, you are ready to use our calibrated device\n"
 fi

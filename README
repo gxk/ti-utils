@@ -2,52 +2,64 @@
 The calibrator and other useful utilities for TI wireless solution,
 based on wl12xx driver.
 
-Calibration is process of determining radio parameters per device and provide 
-them for hardware. The data provided by calibration stored in NVS file which
-kept separately from firmware file.
+Calibration is a process of determining radio parameters for the chip per chip.
+These configuration parameters are specific to the chip on the specific design
+and therefore are sent back to the driver to store in non-volatile memory for
+later use. Upon initialization, the wl12xx driver will load an NVS file where
+it expects to read those parameters and send them to the chip. 
 
-The NVS file contents of 2 parts, where one for parameters from calibration
-process and other for parameters from INI file.
+The NVS file contains 2 main parts - one stores the calibration parameters and
+the other one stores initialization information required for the wl12xx driver. 
 
 --- Build procedure
 
-Make sure your kernel is configured to support nl80211 testmode commands.
-(NL80211_TESTMODE=y)
-There is dependents on libnl v2.x package.
+Kernel configuration.
+Make sure your kernel is configured to support nl80211 testmode commands
+(NL80211_TESTMODE=y). Also enable following configurations:
+CRC7=m
+FW_LOADER=m
+
+In userspace there is dependent on libnl v2.x package.
+
 
 Set follow environment variables:
 export NFSROOT=<path to roofs of a target where installed libnl library>
 export CROSS_COMPILE=arm-none-linux-gnueabi-
 make
+make install
 
+Make sure that calibrator utility and go.sh script placed in the same dir.
 
---- Running PLT utility
+--- How to calibrate
 
-1. Have to prepare NVS reference file
+1. The default calibration procedure that includes all stages is
+
 	a. Boot the system
-	b. Create NVS reference file
-		./calibrator set ref_nvs ./<ini file>
-	c. Copy newly created NVS file to the proper place:
-		cp new-nvs.bin /lib/firmware/wl1271-nvs.bin
-2. Calibrate the system
-	a. Reboot the system
-		While booting the system do not start wireless device
-		interface. Make sure it is down, by running 
-		command: `ifconfig'.
 	b. Calibrate
-		./calibrator plt calibrate
-	c. Copy newly created file to the proper place
-		cp new-nvs.bin /lib/firmware/wl1271-nvs.bin
-3. Reboot the system
+		./go.sh -c <path to INI file> [<path to firmware directory>]
 
---- How to pickup INI file
+
+--- How to choose INI file
 
 It is very important to select INI file according to the firmware (see below).
 Those files organized in 3 directories:
 station - currently supported station firmware (wl1271-fw.bin)
 access_point - currently supported access point (wl1271-fw-ap.bin)
 
-For BeagleBoard with BeagleToy use TQS_S_2.6.ini
+For BeagleBoard and Panda board use TQS_S_2.6.ini
+
+
+--- How to change MAC address in calibrated NVS
+
+./calibrator set nvs_mac <nvs file> [<mac addr xx:xx:xx:xx:xx:xx>]
+
+If the MAC address missing, the random valid value will be added.
+
+
+--- How to dump NVS file
+
+calibrator get dump_nvs [<nvs filename>]
+
 
 --- Firmware files
 
@@ -58,14 +70,18 @@ There are 2 firmware files there:
 wl1271-fw.bin    - station firmware
 wl1271-fw-ap.bin    - access point firmware
 
+
 --- Detailed instructions for calibrator procedures
+
+The following detailed instructions are collection of commands done by
+default calibration procedure.
 
 	TxBip procedure (calibration)
 
-It is importand to set MAC address to an interface before the procedure.
+It is important to set MAC address to an interface before the procedure.
 For example, `ifconfig wlan0 hw ether xx:xx:xx:xx:xx:xx'
 There are 2 ways to do it - short where all parameters has default values and
-full where you have to set all parameters manualy.
+full where you have to set all parameters manually.
 
 Short way:
 calibrator plt calibrate
@@ -75,7 +91,7 @@ calibrator wlan0 plt power_mode on
 calibrator wlan0 plt tx_bip <0|1> <0|1> <0|1> <0|1> <0|1> <0|1> <0|1> <0|1>
 calibrator wlan0 plt power_mode off
 
-Result of this procedure is new NVS file created localy ./new-nvs.bin
+Result of this procedure is new NVS file created locally ./new-nvs.bin
 In order to use it, copy the file to /lib/firmware/wl1271-nvs.bin and reload.
 
 	TxCont procedure
@@ -111,7 +127,7 @@ Packets send are configurable with following parameters:
   Amount - number of packets in case of using series mode
   Power - output power in dBm*1000
   Seed - value for the scrambler
-  Packet mode - 0-single, 1-multipile, 3-continuos, 4-FCC
+  Packet mode - 0-single, 1-multipile, 3-continuous, 4-FCC
   DC on/off - activate DCF
   gi - guard interval on/off for 11n rates
   Preamble
@@ -129,7 +145,7 @@ Packets send are configurable with following parameters:
 	RxStat procedure
 
 There are 2 ways to do it - short where all parameters has default values and
-full where you have to set all parameters manualy.
+full where you have to set all parameters manually.
 
 Short way:
 calibrator plt rx_statistics
@@ -149,26 +165,21 @@ calibrator wlan0 plt reset_rx_statcs
 	Update NVS file procedure
 
 This is procedure changes ini part of NVS file. It helps when there is need
-to change ini part of NVS which already calibrarted. 
+to change ini part of NVS which already calibrated. 
 
 calibrator set upd_nvs <ini file> [<nvs file>]
 
 If NVS filename parameter not provided the current NVS file will be used from
 destination directory (usually /lib/firmware).
 
-	Miscelanious procedures
+
+--- Miscellaneous procedures
 
 Read MAC address from NVS file:
 calibrator get nvs_mac <nvs filename>
 
-Set MAC address in NVS file:
-calibrator set nvs_mac <mac addr xx:xx:xx:xx:xx:xx> <nvs file>
-
 Push local NVS to the system:
 calibrator phy <phyname> set push_nvs <nvs filename>
-
-Dump NVS file:
-calibrator get dump_nvs [<nvs filename>]
 
 -------------------------------------------------------------------------------
 

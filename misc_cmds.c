@@ -1,5 +1,6 @@
 #include <stdbool.h>
 #include <errno.h>
+#include <time.h>
 #include <net/if.h>
 #include <unistd.h>
 #include <sys/types.h>
@@ -145,6 +146,10 @@ static int get_nvs_mac(struct nl80211_state *state, struct nl_cb *cb,
 COMMAND(get, nvs_mac, "<nvs filename>", 0, 0, CIB_NONE, get_nvs_mac,
 	"Get MAC addr from NVS file (offline)");
 
+/*
+ * Sets MAC address in NVS.
+ * The default value for MAC is random where 1 byte zero.
+ */
 static int set_nvs_mac(struct nl80211_state *state, struct nl_cb *cb,
 			struct nl_msg *msg, int argc, char **argv)
 {
@@ -155,26 +160,41 @@ static int set_nvs_mac(struct nl80211_state *state, struct nl_cb *cb,
 	argc -= 2;
 	argv += 2;
 
-	if (argc != 2 || strlen(argv[0]) != 17)
+	if (argc != 1 || (argc == 2 && strlen(argv[0]) != 17))
 		return 2;
 
-	sscanf(argv[0], "%2x:%2x:%2x:%2x:%2x:%2x",
+	if (argc == 2)
+		sscanf(argv[1], "%2x:%2x:%2x:%2x:%2x:%2x",
 		(unsigned int *)&in_mac[0], (unsigned int *)&in_mac[1],
 		(unsigned int *)&in_mac[2], (unsigned int *)&in_mac[3],
 		(unsigned int *)&in_mac[4], (unsigned int *)&in_mac[5]);
+	else {
+		srand((unsigned)time(NULL));
 
-	fd = open(argv[1], O_RDWR);
+		in_mac[0] = 0x0;
+		in_mac[1] = rand()%256;
+		in_mac[2] = rand()%256;
+		in_mac[3] = rand()%256;
+		in_mac[4] = rand()%256;
+		in_mac[5] = rand()%256;
+	}
+
+	fd = open(argv[0], O_RDWR);
 	if (fd < 0) {
 		perror("Error opening file for reading");
 		return 1;
 	}
 
 	read(fd, mac_buff, 12);
+#if 0
+	printf("Got MAC addr for NVS: %02x:%02x:%02x:%02x:%02x:%02x\n",
+		in_mac[0], in_mac[1], in_mac[2],
+		in_mac[3], in_mac[4], in_mac[5]);
 
 	printf("Got MAC addr from NVS: %02x:%02x:%02x:%02x:%02x:%02x\n",
 		mac_buff[11], mac_buff[10], mac_buff[6],
 		mac_buff[5], mac_buff[4], mac_buff[3]);
-
+#endif
 	mac_buff[11] = in_mac[0];
 	mac_buff[10] = in_mac[1];
 	mac_buff[6]  = in_mac[2];
@@ -191,7 +211,7 @@ static int set_nvs_mac(struct nl80211_state *state, struct nl_cb *cb,
 	return 0;
 }
 
-COMMAND(set, nvs_mac, "<mac addr> <nvs file>", 0, 0, CIB_NONE, set_nvs_mac,
+COMMAND(set, nvs_mac, "<nvs file> [<mac addr>]", 0, 0, CIB_NONE, set_nvs_mac,
 	"Set MAC addr in NVS file (offline), like XX:XX:XX:XX:XX:XX");
 
 static int set_ref_nvs(struct nl80211_state *state, struct nl_cb *cb,
