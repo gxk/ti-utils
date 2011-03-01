@@ -1,7 +1,7 @@
 CC = $(CROSS_COMPILE)gcc
 CFLAGS = -O2
 CFLAGS += -DCONFIG_LIBNL20
-CFLAGS += -I$(NFSROOT)/usr/include
+CFLAGS += -I$(NFSROOT)/usr/include -I$(NFSROOT)/include
 
 LDFLAGS += -L$(NFSROOT)/lib
 LIBS += -lnl -lnl-genl -lm
