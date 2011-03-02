@@ -160,7 +160,7 @@ static int set_nvs_mac(struct nl80211_state *state, struct nl_cb *cb,
 	argc -= 2;
 	argv += 2;
 
-	if (argc != 1 || (argc == 2 && strlen(argv[0]) != 17))
+	if (argc < 1 || (argc == 2 && (strlen(argv[1]) != 17)))
 		return 2;
 
 	if (argc == 2)
