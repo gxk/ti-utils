@@ -9,7 +9,7 @@
 #  32 - calibrate				0010 0000
 #  64 - 1-command calibration			0100 0000
 
-go_version="0.6"
+go_version="0.7"
 usage()
 {
 	echo -e "\tUSAGE:\n\t    `basename $0` <option> [value]"
@@ -244,7 +244,7 @@ if [ "$stage_quattro" -ne "0" ]; then
 		echo 1 > /sys/kernel/debug/tracing/events/mac80211/enable
 	fi
 
-	ifconfig wlan0 hw ether $mac_addr
+	#ifconfig wlan0 hw ether $mac_addr
 	#cat /sys/kernel/debug/mmc2/ios
 fi
 
