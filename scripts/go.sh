@@ -17,7 +17,7 @@ usage()
 	echo -e "\t\t\t15-full boot"
 	echo -e "\t\t-c <path to INI file> [path to install] - run calibration"
 	echo -e "\t\t\twhere the default value for install path is "
-	echo -e "\t\t\t/lib/firmware/wl1271-nvs.bin"
+	echo -e "\t\t\t/lib/firmware/ti-connectivity/wl1271-nvs.bin"
 	echo -e "\t\t-d <value> - debuglevel, where"
 	echo -e "\t\t\t  -1      - shows current value
 \t\t\tDEBUG_IRQ       = BIT(0)
@@ -55,7 +55,7 @@ set_ip_addr=0
 have_path_to_ini=0
 path_to_ini=""
 have_path_to_install=0
-path_to_install="/lib/firmware/wl1271-nvs.bin"
+path_to_install="/lib/firmware/ti-connectivity/wl1271-nvs.bin"
 while [ "$i" -lt "$nbr_args" ]
 do
 	case $1 in

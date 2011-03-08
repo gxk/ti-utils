@@ -1,7 +1,7 @@
 #ifndef __PLT_H
 #define __PLT_H
 
-#define CURRENT_NVS_NAME	"/lib/firmware/wl1271-nvs.bin"
+#define CURRENT_NVS_NAME	"/lib/firmware/ti-connectivity/wl1271-nvs.bin"
 #define NEW_NVS_NAME		"./new-nvs.bin"
 #define NVS_FILE_SIZE_127X	0x390
 #define NVS_FILE_SIZE_128X	0x459
