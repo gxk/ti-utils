@@ -46,7 +46,8 @@ Those files organized in 3 directories:
 station - currently supported station firmware (wl1271-fw.bin)
 access_point - currently supported access point (wl1271-fw-ap.bin)
 
-For BeagleBoard and Panda board use TQS_S_2.6.ini
+For Beagle board and Panda board use ini_files/station/127x/TQS_S_2.6.ini
+For Blaze board with ES2.1 or ES2.1 use ini_files/station/128x/TQS_D_1.7.ini
 
 
 --- How to change MAC address in calibrated NVS
