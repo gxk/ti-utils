@@ -19,8 +19,8 @@ Make sure your kernel is configured to support nl80211 testmode commands
 CRC7=m
 FW_LOADER=m
 
-In userspace there is dependent on libnl v2.x package.
-
+In userspace there is dependent on libnl v2.x package. It can be downloaded
+from http://www.infradead.org/~tgr/libnl/files/libnl-2.0.tar.gz
 
 Set follow environment variables:
 export NFSROOT=<path to roofs of a target where installed libnl library>
