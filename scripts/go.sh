@@ -5,8 +5,8 @@
 #   2 - load mav80211				0000 0010
 #   4 - load driver				0000 0100
 #   8 - up dev, load wpa_supplicant		0000 1000
-#  16 - create reference NVS            	0001 0000
-#  32 - calibrate				0010 0000
+#  16 - Settings for Android            	0001 0000
+#  32 - running AP				0010 0000
 #  64 - 1-command calibration			0100 0000
 
 go_version="0.8"
@@ -56,6 +56,8 @@ have_path_to_ini=0
 path_to_ini=""
 have_path_to_install=0
 path_to_install="/lib/firmware/ti-connectivity/wl1271-nvs.bin"
+is_android=0
+prefix_path2modules=
 while [ "$i" -lt "$nbr_args" ]
 do
 	case $1 in
@@ -129,15 +131,12 @@ do
 	shift
 done
 
-#if [ "$bootlevel" -eq "0" ]; then
-#	exit 0
-#fi
-
 stage_uno=0
 stage_due=0
 stage_quattro=0
 stage_otto=0
 stage_sedici=0
+stage_trentadue=0
 stage_sessanta_quattro=0
 case $bootlevel in
 	1) stage_uno=`expr $stage_uno + 1`
@@ -171,6 +170,8 @@ case $bootlevel in
 	;;
 	16) stage_sedici=`expr $stage_sedici + 1`
 	;;
+	32) stage_trentadue=`expr $stage_trentadue + 1`
+	;;
 	64) stage_sessanta_quattro=`expr $stage_sessanta_quattro + 1`
 	;;
 	66)
@@ -182,6 +183,16 @@ esac
 echo -e "\t------------         ------------\n"
 echo -e "\t---===<<<((( WELCOME )))>>>===---\n"
 echo -e "\t------------         ------------\n"
+
+insmod_path=
+rmmod_path=
+
+if [ $ANDROID_ROOT ]; then
+	is_android=`expr $is_android + 1`
+	prefix_path2modules="/system/"
+	insmod_path="/system/bin/"
+	rmmod_path="/system/bin/"
+fi
 
 if [ "$stage_uno" -ne "0" ]; then
 	echo -e "+++ Mount the debugfs on /sys/kernel/debug"
@@ -202,7 +213,7 @@ if [ "$stage_due" -ne "0" ]; then
 
 	run_it=`cat /proc/modules | grep "cfg80211"`
 	if [ "$run_it" == "" ]; then
-		insmod /lib/modules/`uname -r`/kernel/net/wireless/cfg80211.ko
+		"$insmod_path"insmod /lib/modules/`uname -r`/kernel/net/wireless/cfg80211.ko
 	fi
 	run_it=`cat /proc/modules | grep "mac80211"`
 	if [ "$run_it" == "" ]; then
@@ -223,7 +234,11 @@ if [ "$stage_quattro" -ne "0" ]; then
 
 	run_it=`cat /proc/modules | grep "wl12xx"`
 	if [ "$run_it" == "" ]; then
-		insmod /lib/modules/`uname -r`/kernel/drivers/net/wireless/wl12xx/wl12xx.ko
+		if [ "$is_android" -eq "0" ]; then
+			"$insmod_path"insmod /lib/modules/`uname -r`/kernel/drivers/net/wireless/wl12xx/wl12xx.ko
+		else
+			"$insmod_path"insmod /system/lib/modules/wl12xx.ko
+		fi
 		if [ "$?" != "0" ]; then
 			echo -e "Fail to load wl12xx"
 			exit 1
@@ -232,7 +247,11 @@ if [ "$stage_quattro" -ne "0" ]; then
 
 	run_it=`cat /proc/modules | grep "wl12xx_sdio"`
 	if [ "$run_it" == "" ]; then
-		insmod /lib/modules/`uname -r`/kernel/drivers/net/wireless/wl12xx/wl12xx_sdio.ko
+		if [ "$is_android" -eq "0" ]; then
+			"$insmod_path"insmod /lib/modules/`uname -r`/kernel/drivers/net/wireless/wl12xx/wl12xx_sdio.ko
+		else
+			insmod /system/lib/modules/wl12xx_sdio.ko
+		fi
 		if [ "$?" != "0" ]; then
 			echo -e "Fail to load wl12xx_sdio"
 			exit 1
@@ -268,11 +287,68 @@ if [ "$stage_otto" -ne "0" ]; then
 	#python /usr/share/peripherals-test-autom/dut.py -v &
 fi
 
-if [ "$stage_sedici" -ne "0" ] && [ "$have_path_to_ini" -ne "0" ]; then
+if [ "$stage_sedici" -ne "0" ]; then
 	echo manual_lock > /sys/power/wake_lock
 	echo performance > /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
 	echo 1 > /sys/devices/system/cpu/cpu1/online
 	echo performance > /sys/devices/system/cpu/cpu1/cpufreq/scaling_governor
+fi
+
+if [ "$stage_trentadue" -ne "0" ]; then
+	if [[ $# -ne 1 ]]; then
+		echo "Not enough arguments for generate-hostapd()"
+		usage
+		exit
+	fi
+
+	echo "
+interface=$DEV
+driver=$DRIVER
+channel=$CHANNEL
+hw_mode=$HW_MODE
+preamble=1
+dtim_period=2
+beacon_int=100
+logger_syslog=-1
+logger_syslog_level=2
+logger_stdout=-1
+logger_stdout_level=2
+dump_file=/tmp/hostapd.dump
+ctrl_interface=/var/run/hostapd
+ctrl_interface_group=0
+ssid=$ESSID
+max_num_sta=5
+macaddr_acl=0
+#auth_algs=3
+wme_enabled=0
+#wme_ac_bk_cwmin=4
+#wme_ac_bk_cwmax=10
+#wme_ac_bk_aifs=7
+#wme_ac_bk_txop_limit=0
+#wme_ac_bk_acm=0
+#wme_ac_be_aifs=3
+#wme_ac_be_cwmin=4
+#wme_ac_be_cwmax=10
+#wme_ac_be_txop_limit=0
+#wme_ac_be_acm=0
+#wme_ac_vi_aifs=2
+#wme_ac_vi_cwmin=3
+#wme_ac_vi_cwmax=4
+#wme_ac_vi_txop_limit=94
+#wme_ac_vi_acm=0
+#wme_ac_vo_aifs=2
+#wme_ac_vo_cwmin=2
+#wme_ac_vo_cwmax=3
+#wme_ac_vo_txop_limit=47
+#wme_ac_vo_acm=0
+#eapol_key_index_workaround=0
+#eap_server=0
+own_ip_addr=127.0.0.1
+#wpa=$WPA_ENABLED
+#wpa_passphrase=$PASSWORD
+#wpa_key_mgmt=WPA-PSK
+#wpa_pairwise=$PAIRWISE_ALG
+" > $1
 fi
 
 #
@@ -307,24 +383,7 @@ if [ "$stage_sessanta_quattro" -ne "0" ]; then
 	run_it=`cp -f ./new-nvs.bin $path_to_install`
 
 	# 4. load wl12xx kernel modules
-	echo -e "+++ Load wl12xx driver"
-	run_it=`cat /proc/modules | grep "wl12xx"`
-	if [ "$run_it" == "" ]; then
-		insmod /lib/modules/`uname -r`/kernel/drivers/net/wireless/wl12xx/wl12xx.ko
-		if [ "$?" != "0" ]; then
-			echo -e "Fail to load wl12xx"
-			exit 1
-		fi
-	fi
-
-	run_it=`cat /proc/modules | grep "wl12xx_sdio"`
-	if [ "$run_it" == "" ]; then
-		insmod /lib/modules/`uname -r`/kernel/drivers/net/wireless/wl12xx/wl12xx_sdio.ko
-		if [ "$?" != "0" ]; then
-			echo -e "Fail to load wl12xx_sdio"
-			exit 1
-		fi
-	fi
+	sh $0 -b 4
 
 	# 5. calibrate
 	echo -e "+++ Calibrate"
@@ -391,7 +450,10 @@ if [ "$dbg_lvl" -eq "-1" ] && [ -e /sys/module/wl12xx/parameters/debug_level ]; 
 elif [ "$dbg_lvl" -ne "0" ] && [ -e /sys/module/wl12xx/parameters/debug_level ]; then
 	echo "$dbg_lvl" > /sys/module/wl12xx/parameters/debug_level
 
+	echo 'module cfg80211 +p' > /sys/kernel/debug/dynamic_debug/control
+	echo 'module mac80211 +p' > /sys/kernel/debug/dynamic_debug/control
 	echo 'module wl12xx +p' > /sys/kernel/debug/dynamic_debug/control
+	echo 'module wl12xx_sdio +p' > /sys/kernel/debug/dynamic_debug/control
 fi
 
 if [ "$set_ip_addr" -ne "0" ]; then
