@@ -15,7 +15,7 @@ usage()
 	echo -e "\tUSAGE:\n\t    `basename $0` <option> [value]"
 	echo -e "\t\t-b <value> - bootlevel, where\n\t\t\t7-PLT boot"
 	echo -e "\t\t\t15-full boot"
-	echo -e "\t\t-c <path to INI file> [path to install] - run calibration"
+	echo -e "\t\t-c <path to INI file> [MAC address] - run calibration"
 	echo -e "\t\t\twhere the default value for install path is "
 	echo -e "\t\t\t/lib/firmware/ti-connectivity/wl1271-nvs.bin"
 	echo -e "\t\t-d <value> - debuglevel, where"
