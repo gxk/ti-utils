@@ -18,7 +18,7 @@ LOCAL_C_INCLUDES := \
 	external/libnl/include
 
 LOCAL_SHARED_LIBRARIES := libnl
-LOCAL_MODULE_TAGS := optional
+LOCAL_MODULE_TAGS := eng
 LOCAL_MODULE := calibrator
 
 include $(BUILD_EXECUTABLE)
