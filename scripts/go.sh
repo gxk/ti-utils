@@ -15,7 +15,10 @@ usage()
 	echo -e "\tUSAGE:\n\t    `basename $0` <option> [value]"
 	echo -e "\t\t-b <value> - bootlevel, where\n\t\t\t7-PLT boot"
 	echo -e "\t\t\t15-full boot"
-	echo -e "\t\t-c <path to INI file> [MAC address] - run calibration"
+	echo -e "\t\t-c <path to INI file> [path to install NVS] -
+run calibration"
+	echo -e "\t\t-c2 <path to INI file> <path to INI file> -
+run calibration with 2 FEM"
 	echo -e "\t\t\twhere the default value for install path is "
 	echo -e "\t\t\t/lib/firmware/ti-connectivity/wl1271-nvs.bin"
 	echo -e "\t\t-d <value> - debuglevel, where"
@@ -54,6 +57,7 @@ ip_addr="192.168.1.1"
 set_ip_addr=0
 have_path_to_ini=0
 path_to_ini=""
+path_to_ini2=""
 have_path_to_install=0
 path_to_install="/lib/firmware/ti-connectivity/wl1271-nvs.bin"
 is_android=0
@@ -88,6 +92,20 @@ do
 
 			have_path_to_install=`expr $have_path_to_install + 1`
 			path_to_install=$3
+			nbr_args=`expr $nbr_args - 2`
+			shift
+			shift
+		;;
+		-c2)    # calibration with 2 FEMs
+			if [ "$nbr_args" -lt "3" ]; then
+				echo -e "missing arguments"
+				exit 1
+			fi
+
+			bootlevel=66
+			have_path_to_ini=`expr $have_path_to_ini + 1`
+			path_to_ini=$2
+			path_to_ini2=$3
 			nbr_args=`expr $nbr_args - 2`
 			shift
 			shift
@@ -294,62 +312,8 @@ if [ "$stage_sedici" -ne "0" ]; then
 	echo performance > /sys/devices/system/cpu/cpu1/cpufreq/scaling_governor
 fi
 
-if [ "$stage_trentadue" -ne "0" ]; then
-	if [[ $# -ne 1 ]]; then
-		echo "Not enough arguments for generate-hostapd()"
-		usage
-		exit
-	fi
-
-	echo "
-interface=$DEV
-driver=$DRIVER
-channel=$CHANNEL
-hw_mode=$HW_MODE
-preamble=1
-dtim_period=2
-beacon_int=100
-logger_syslog=-1
-logger_syslog_level=2
-logger_stdout=-1
-logger_stdout_level=2
-dump_file=/tmp/hostapd.dump
-ctrl_interface=/var/run/hostapd
-ctrl_interface_group=0
-ssid=$ESSID
-max_num_sta=5
-macaddr_acl=0
-#auth_algs=3
-wme_enabled=0
-#wme_ac_bk_cwmin=4
-#wme_ac_bk_cwmax=10
-#wme_ac_bk_aifs=7
-#wme_ac_bk_txop_limit=0
-#wme_ac_bk_acm=0
-#wme_ac_be_aifs=3
-#wme_ac_be_cwmin=4
-#wme_ac_be_cwmax=10
-#wme_ac_be_txop_limit=0
-#wme_ac_be_acm=0
-#wme_ac_vi_aifs=2
-#wme_ac_vi_cwmin=3
-#wme_ac_vi_cwmax=4
-#wme_ac_vi_txop_limit=94
-#wme_ac_vi_acm=0
-#wme_ac_vo_aifs=2
-#wme_ac_vo_cwmin=2
-#wme_ac_vo_cwmax=3
-#wme_ac_vo_txop_limit=47
-#wme_ac_vo_acm=0
-#eapol_key_index_workaround=0
-#eap_server=0
-own_ip_addr=127.0.0.1
-#wpa=$WPA_ENABLED
-#wpa_passphrase=$PASSWORD
-#wpa_key_mgmt=WPA-PSK
-#wpa_pairwise=$PAIRWISE_ALG
-" > $1
-fi
+#if [ "$stage_trentadue" -ne "0" ]; then
+#fi
 
 #
 # 1-command calibration

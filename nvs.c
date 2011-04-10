@@ -31,7 +31,7 @@ static const char if_name_fmt[] = "wlan%d";
 
 int nvs_fill_radio_params(int fd, struct wl12xx_ini *ini, char *buf)
 {
-	int size;
+	size_t size;
 	struct wl1271_ini *gp;
 
 	if (ini)
@@ -46,8 +46,8 @@ int nvs_fill_radio_params(int fd, struct wl12xx_ini *ini, char *buf)
 		for (i = 0; i < size; i++)
 			write(fd, c++, 1);
 	} else {
-		unsigned char *p = buf + 0x1D4;
-		write(fd, p, size);
+		char *p = buf + 0x1D4;
+		write(fd, (const void *)p, size);
 	}
 
 	return 0;
@@ -68,7 +68,7 @@ static int nvs_fill_radio_params_128x(int fd, struct wl12xx_ini *ini, char *buf)
 			write(fd, c++, 1);
 
 	} else {
-		unsigned char *p = buf + 0x1D4;
+		char *p = buf + 0x1D4;
 		write(fd, p, size);
 	}
 
@@ -140,7 +140,7 @@ void cfg_nvs_ops(struct wl12xx_common *cmn)
 		cmn->nvs_ops = &wl128x_nvs_ops;
 }
 
-static int read_from_current_nvs(const unsigned char *nvs_file,
+static int read_from_current_nvs(const char *nvs_file,
 	char *buf, int size, int *nvs_sz)
 {
 	int curr_nvs, ret;
@@ -154,7 +154,8 @@ static int read_from_current_nvs(const unsigned char *nvs_file,
 
 	ret = read(curr_nvs, buf, size);
 	if (ret < 0) {
-		fprintf(stderr, "Fail to read file %s (%s)", strerror(errno));
+		fprintf(stderr, "Fail to read file %s (%s)", nvs_file,
+			strerror(errno));
 		close(curr_nvs);
 		return 1;
 	}
@@ -169,9 +170,10 @@ static int read_from_current_nvs(const unsigned char *nvs_file,
 	return 0;
 }
 
-int read_nvs(const unsigned char *nvs_file, char *buf, int size, int *nvs_sz)
+static int read_nvs(const char *nvs_file, char *buf,
+	int size, int *nvs_sz)
 {
-	int ret, fl_sz;
+	int fl_sz;
 	char file2read[FILENAME_MAX];
 
 	if (nvs_file == NULL || strlen(nvs_file) < 2) {
@@ -273,6 +275,27 @@ static void nvs_parse_data(const unsigned char *buf,
 	}
 }
 
+static int nvs_fill_version(int fd, unsigned int *pdata)
+{
+	unsigned char tmp = eNVS_VERSION;
+	unsigned short tmp2 = NVS_VERSION_PARAMETER_LENGTH;
+
+	write(fd, &tmp, 1);
+
+	write(fd, &tmp2, 2);
+
+	tmp = (*pdata >> 16) & 0xff;
+	write(fd, &tmp, 1);
+
+	tmp = (*pdata >> 8) & 0xff;
+	write(fd, &tmp, 1);
+
+	tmp = *pdata & 0xff;
+	write(fd, &tmp, 1);
+
+	return 0;
+}
+
 static int nvs_fill_old_rx_data(int fd, const unsigned char *buf,
 	unsigned short len)
 {
@@ -294,7 +317,7 @@ static int nvs_fill_old_rx_data(int fd, const unsigned char *buf,
 
 static int nvs_upd_nvs_part(int fd, char *buf)
 {
-	unsigned char *p = buf;
+	char *p = buf;
 
 	write(fd, p, 0x1D4);
 
@@ -369,34 +392,13 @@ static int nvs_fill_nvs_part(int fd)
 	return 0;
 }
 
-int nvs_fill_version(int fd, unsigned int *pdata)
-{
-	unsigned char tmp = eNVS_VERSION;
-	unsigned short tmp2 = NVS_VERSION_PARAMETER_LENGTH;
-
-	write(fd, &tmp, 1);
-
-	write(fd, &tmp2, 2);
-
-	tmp = (*pdata >> 16) & 0xff;
-	write(fd, &tmp, 1);
-
-	tmp = (*pdata >> 8) & 0xff;
-	write(fd, &tmp, 1);
-
-	tmp = *pdata & 0xff;
-	write(fd, &tmp, 1);
-
-	return 0;
-}
-
-int prepare_nvs_file(void *arg, unsigned char *file_name)
+int prepare_nvs_file(void *arg, char *file_name)
 {
 	int new_nvs, i, nvs_size;
 	unsigned char mac_addr[MAC_ADDR_LEN];
 	struct wl1271_cmd_cal_p2g *pdata;
 	struct wl1271_cmd_cal_p2g old_data[eNUMBER_RADIO_TYPE_PARAMETERS_INFO];
-	unsigned char buf[2048];
+	char buf[2048];
 	unsigned char *p;
 	struct wl12xx_common cmn = {
 		.arch = UNKNOWN_ARCH,
@@ -496,7 +498,7 @@ int prepare_nvs_file(void *arg, unsigned char *file_name)
 		memset(old_data, 0,
 			sizeof(struct wl1271_cmd_cal_p2g)*
 				eNUMBER_RADIO_TYPE_PARAMETERS_INFO);
-		nvs_parse_data(&buf[NVS_PRE_PARAMETERS_LENGTH],
+		nvs_parse_data((const unsigned char *)&buf[NVS_PRE_PARAMETERS_LENGTH],
 			old_data, &old_ver);
 
 		nvs_fill_old_rx_data(new_nvs,
@@ -526,8 +528,7 @@ int prepare_nvs_file(void *arg, unsigned char *file_name)
 int create_nvs_file(struct wl12xx_common *cmn)
 {
 	int new_nvs, res = 0;
-	unsigned char buf[2048];
-	unsigned char *p;
+	char buf[2048];
 
 	/* create new NVS file */
 	new_nvs = open(NEW_NVS_NAME,
@@ -560,8 +561,7 @@ out:
 int update_nvs_file(const char *nvs_file, struct wl12xx_common *cmn)
 {
 	int new_nvs, res = 0;
-	unsigned char buf[2048];
-	unsigned char *p;
+	char buf[2048];
 
 	res = read_nvs(nvs_file, buf, BUF_SIZE_4_NVS_FILE, NULL);
 	if (res)
@@ -598,7 +598,7 @@ out:
 int dump_nvs_file(const char *nvs_file, struct wl12xx_common *cmn)
 {
 	int sz=0, size;
-	unsigned char buf[2048];
+	char buf[2048];
 	unsigned char *p = (unsigned char *)buf;
 
 	if (read_nvs(nvs_file, buf, BUF_SIZE_4_NVS_FILE, &size))

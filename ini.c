@@ -799,7 +799,7 @@ static int find_section(const char *l, enum wl1271_ini_section *st, int *cntr,
 
 static int ini_parse_line(char *l, int nbr, struct wl12xx_common *cmn)
 {
-	static enum wl1271_ini_section status = UKNOWN_SECTION;
+	static enum wl1271_ini_section status;
 	static int cntr;
 
 	if (!cntr && find_section(l, &status, &cntr, cmn->arch)) {
@@ -831,6 +831,9 @@ static int ini_parse_line(char *l, int nbr, struct wl12xx_common *cmn)
 	case FEM1_BAND5_PRMS:	/* FEM1 band 5GHz parameters */
 		cntr--;
 		return cmn->parse_ops->prs_fem1_band5_prms(l, &cmn->ini);
+	case UKNOWN_SECTION:
+		/* added because of compilation warning. handeled in find_section() */
+		break;
 	}
 
 	return 1;
@@ -939,20 +942,28 @@ static struct wl12xx_parse_ops wl128x_parse_ops = {
 static int ini_get_arch(FILE *f, struct wl12xx_common *cmn)
 {
 	char buf[1024], *pos;
-	int errors = 0, line = 0;
+	int line = 0;
+	enum wl12xx_arch arch = UNKNOWN_ARCH;
 
 	while (ini_get_line(buf, sizeof(buf), f, &line, &pos)) {
 		if (strncmp("TCXO_Clk", pos, 8) == 0) {
-			cmn->arch = WL128X_ARCH;
-			cmn->parse_ops = &wl128x_parse_ops;
+			arch = WL128X_ARCH;
 			break;
 		}
 	}
 
-	if (cmn->arch == UNKNOWN_ARCH) {
-		cmn->arch = WL1271_ARCH;
+	if (arch == UNKNOWN_ARCH)
+		arch = WL1271_ARCH;
+
+	if (cmn->arch != UNKNOWN_ARCH && cmn->arch != arch)
+		return 1;
+
+	cmn->arch = arch;
+
+	if (cmn->arch == WL1271_ARCH)
 		cmn->parse_ops = &wl1271_parse_ops;
-	}
+	else
+		cmn->parse_ops = &wl128x_parse_ops;
 
 	fseek(f, 0L, SEEK_SET);
 
@@ -963,7 +974,7 @@ int read_ini(const char *filename, struct wl12xx_common *cmn)
 {
 	FILE *f;
 	char buf[1024], *pos;
-	int errors = 0, line = 0;
+	int line = 0;
 
 	f = fopen(filename, "r");
 	if (f == NULL)

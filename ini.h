@@ -312,4 +312,6 @@ struct wl12xx_nvs_ops {
 	int (*nvs_fill_radio_prms)(int fd, struct wl12xx_ini *p, char *buf);
 };
 
+int read_ini(const char *filename, struct wl12xx_common *cmn);
+
 #endif

@@ -25,6 +25,7 @@
 #include "calibrator.h"
 #include "plt.h"
 #include "ini.h"
+#include "nvs.h"
 
 SECTION(plt);
 
@@ -159,8 +160,9 @@ static int calib_valid_handler(struct nl_msg *msg, void *arg)
 	struct genlmsghdr *gnlh = nlmsg_data(nlmsg_hdr(msg));
 	struct nlattr *td[WL1271_TM_ATTR_MAX + 1];
 	struct wl1271_cmd_cal_p2g *prms;
+#if 0
 	int i; unsigned char *pc;
-
+#endif
 	nla_parse(tb, NL80211_ATTR_MAX, genlmsg_attrdata(gnlh, 0),
 		genlmsg_attrlen(gnlh, 0), NULL);
 
@@ -213,8 +215,8 @@ static int plt_tx_bip(struct nl80211_state *state, struct nl_cb *cb,
 {
 	struct nlattr *key;
 	struct wl1271_cmd_cal_p2g prms;
-	int i; unsigned char *pc;
-	unsigned char nvs_path[PATH_MAX];
+	int i;
+	char nvs_path[PATH_MAX];
 
 	if (argc < 8)
 		return 1;
@@ -453,7 +455,6 @@ static int display_rx_statcs(struct nl_msg *msg, void *arg)
 	struct genlmsghdr *gnlh = nlmsg_data(nlmsg_hdr(msg));
 	struct nlattr *td[WL1271_TM_ATTR_MAX + 1];
 	struct wl1271_radio_rx_statcs *prms;
-	int i; unsigned char *pc;
 
 	nla_parse(tb, NL80211_ATTR_MAX, genlmsg_attrdata(gnlh, 0),
 		genlmsg_attrlen(gnlh, 0), NULL);
@@ -595,7 +596,7 @@ COMMAND(plt, rx_statistics, NULL, 0, 0, CIB_NONE, plt_rx_statistics,
 static int plt_calibrate(struct nl80211_state *state, struct nl_cb *cb,
 			struct nl_msg *msg, int argc, char **argv)
 {
-	int ret;
+	int ret = 0, err;
 	int single_dual = 0;
 
 	if (argc > 2 && (strncmp(argv[2], "dual", 4) ==  0))
@@ -605,19 +606,18 @@ static int plt_calibrate(struct nl80211_state *state, struct nl_cb *cb,
 
 	/* power mode on */
 	{
-		int err;
 		char *pm_on[4] = { "wlan0", "plt", "power_mode", "on" };
 
 		err = handle_cmd(state, II_NETDEV, 4, pm_on);
 		if (err < 0) {
 			fprintf(stderr, "Fail to set PLT power mode on\n");
-			return 1;
+			ret = err;
+			goto fail_out_final;
 		}
 	}
 
 	/* tune channel */
 	{
-		int err;
 		char *pm_on[5] = {
 			"wlan0", "plt", "tune_channel", "0", "7"
 		};
@@ -632,7 +632,6 @@ static int plt_calibrate(struct nl80211_state *state, struct nl_cb *cb,
 
 	/* calibrate it */
 	{
-		int err;
 		char *prms[11] = {
 			"wlan0", "plt", "tx_bip", "1", "0", "0", "0",
 			"0", "0", "0", "0"
@@ -654,16 +653,16 @@ static int plt_calibrate(struct nl80211_state *state, struct nl_cb *cb,
 fail_out:
 	/* power mode off */
 	{
-		int err;
 		char *prms[4] = { "wlan0", "plt", "power_mode", "off"};
 
 		err = handle_cmd(state, II_NETDEV, 4, prms);
 		if (err < 0) {
 			fprintf(stderr, "Fail to set PLT power mode on\n");
-			return 1;
+			ret = err;
 		}
 	}
 
+fail_out_final:
 	if (ret < 0)
 		return 1;
 

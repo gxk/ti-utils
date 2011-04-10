@@ -11,6 +11,7 @@
 #include "calibrator.h"
 #include "plt.h"
 #include "ini.h"
+#include "nvs.h"
 
 SECTION(get);
 SECTION(set);
@@ -20,7 +21,6 @@ static int handle_push_nvs(struct nl80211_state *state,
 			struct nl_msg *msg,
 			int argc, char **argv)
 {
-	char *end;
 	void *map = MAP_FAILED;
 	int fd, retval = 0;
 	struct nlattr *key;
@@ -249,6 +249,42 @@ static int set_ref_nvs(struct nl80211_state *state, struct nl_cb *cb,
 
 COMMAND(set, ref_nvs, "<ini file>", 0, 0, CIB_NONE, set_ref_nvs,
 	"Create reference NVS file");
+
+static int set_ref_nvs2(struct nl80211_state *state, struct nl_cb *cb,
+			struct nl_msg *msg, int argc, char **argv)
+{
+	struct wl12xx_common cmn = {
+		.arch = UNKNOWN_ARCH,
+		.parse_ops = NULL
+	};
+
+	argc -= 2;
+	argv += 2;
+
+	if (argc != 1)
+		return 1;
+
+	if (read_ini(*argv, &cmn)) {
+		fprintf(stderr, "Fail to read ini file\n");
+		return 1;
+	}
+
+	cfg_nvs_ops(&cmn);
+
+	if (create_nvs_file(&cmn)) {
+		fprintf(stderr, "Fail to create reference NVS file\n");
+		return 1;
+	}
+#if 0
+	printf("\n\tThe NVS file (%s) is ready\n\tCopy it to %s and "
+		"reboot the system\n\n",
+		NEW_NVS_NAME, CURRENT_NVS_NAME);
+#endif
+	return 0;
+}
+
+COMMAND(set, ref_nvs2, "<ini file> <ini file>", 0, 0, CIB_NONE, set_ref_nvs2,
+	"Create reference NVS file for 2 FEMs");
 
 static int set_upd_nvs(struct nl80211_state *state, struct nl_cb *cb,
 	struct nl_msg *msg, int argc, char **argv)
