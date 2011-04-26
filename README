@@ -32,12 +32,47 @@ Make sure that calibrator utility and go.sh script placed in the same dir.
 
 --- How to calibrate
 
-1. The default calibration procedure that includes all stages is
+Native Linux calibration procedure.
 
-	a. Boot the system
-	b. Calibrate
-		./go.sh -c <path to INI file> [<path to firmware directory>]
+	Based on script go.sh from ti-utils/scripts
 
+	./go.sh -c <path to INI file> [<path to firmware directory>]
+
+Android calibration procedure.
+
+	Based on adb utility which comes native with Android SDK
+
+	adb shell "echo Going to stop GUI"
+	adb shell "stop"
+
+	adb shell "echo Create reference NVS"
+	adb shell "calibrator set ref_nvs /data/TQS_D_1.7.ini"
+
+	adb shell "echo Copy reference NVS file"
+	adb shell "cat ./new-nvs.bin > /system/etc/firmware/ti-connectivity/wl1271-nvs.bin"
+
+	adb shell "echo Insert wl12xx SDIO module"
+	adb shell "insmod /system/lib/modules/wl12xx_sdio.ko"
+
+	adb shell "echo Calibrate device"
+	adb shell "calibrator wlan0 plt power_mode on"
+	adb shell "calibrator wlan0 plt tune_channel 0 7"
+	adb shell "calibrator wlan0 plt tx_bip 1 1 1 1 1 1 1 1"
+	adb shell "calibrator wlan0 plt power_mode off"
+
+	adb shell "echo Set MAC address in NVS file"
+	adb shell "calibrator set nvs_mac ./new-nvs.bin 08:00:28:90:64:31"
+
+	adb shell "echo Remove wl12xx modules"
+	adb shell "rmmod wl12xx_sdio wl12xx"
+	adb shell "rmmod wl12xx"
+
+	adb shell "echo Copy calibrated NVS file"
+	adb shell "cat ./new-nvs.bin > /system/etc/firmware/ti-connectivity/wl1271-nvs.bin"
+	adb shell "insmod /system/lib/modules/wl12xx.ko"
+
+	adb shell "echo Going to start GUI"
+	adb shell "start"
 
 --- How to choose INI file
 
