@@ -2,7 +2,9 @@
 The calibrator and other useful utilities for TI wireless solution,
 based on wl12xx driver.
 
-Calibration is a process of determining radio parameters for the chip per chip.
+Calibration is a process in which specific radio configuration parameters are
+generated and saved into the NVS file, later to be used by the wl12xx driver
+upon initialization. 
 These configuration parameters are specific to the chip on the specific design
 and therefore are sent back to the driver to store in non-volatile memory for
 later use. Upon initialization, the wl12xx driver will load an NVS file where
@@ -36,7 +38,7 @@ Make sure that calibrator utility and go.sh script placed in the same dir.
 
 	a. Boot the system
 	b. Calibrate
-		./go.sh -c <path to INI file> [<path to firmware directory>]
+		./go.sh -c <path to INI file> [<path to install firmware>]
 
 
 --- How to choose INI file
@@ -181,6 +183,12 @@ calibrator get nvs_mac <nvs filename>
 
 Push local NVS to the system:
 calibrator phy <phyname> set push_nvs <nvs filename>
+
+Set NVS to use auto FEM detection 
+calibrator set autofem 1
+
+Set FEM manufacturer
+calibrator set fem_manuf 0|1
 
 -------------------------------------------------------------------------------
 

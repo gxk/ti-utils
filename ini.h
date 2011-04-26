@@ -291,15 +291,21 @@ struct wl12xx_ini {
 	};
 };
 
+#define DUAL_MODE_UNSET		0xff
+#define NO_FEM_PARSED		0xff
+
 struct wl12xx_common {
 	enum wl12xx_arch arch;
+	unsigned char dual_mode;
+	unsigned char done_fem; /* Number of FEM already parsed */
 	struct wl12xx_parse_ops *parse_ops;
 	struct wl12xx_nvs_ops   *nvs_ops;
 	struct wl12xx_ini ini;
 };
 
 struct wl12xx_parse_ops {
-	int (*prs_general_prms)(char *l, struct wl12xx_ini *p);
+	int (*prs_general_prms)(char *l, struct wl12xx_common *cmn,
+		struct wl12xx_ini *p);
 	/* int (*prs_fem_prms)(char *l, void *gp); */
 	int (*prs_band2_prms)(char *l, struct wl12xx_ini *p);
 	int (*prs_band5_prms)(char *l, struct wl12xx_ini *p);
@@ -310,7 +316,11 @@ struct wl12xx_parse_ops {
 
 struct wl12xx_nvs_ops {
 	int (*nvs_fill_radio_prms)(int fd, struct wl12xx_ini *p, char *buf);
+	int (*nvs_set_autofem)(int fd, char *buf, unsigned char val);
+	int (*nvs_set_fem_manuf)(int fd, char *buf, unsigned char val);
 };
+
+int nvs_get_arch(int file_size, struct wl12xx_common *cmn);
 
 int read_ini(const char *filename, struct wl12xx_common *cmn);
 

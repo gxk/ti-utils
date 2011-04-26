@@ -75,12 +75,108 @@ static int nvs_fill_radio_params_128x(int fd, struct wl12xx_ini *ini, char *buf)
 	return 0;
 }
 
+int nvs_set_autofem(int fd, char *buf, unsigned char val)
+{
+	size_t size;
+	struct wl1271_ini *gp;
+	unsigned char *c;
+	int i;
+
+	if (buf == NULL)
+		return 1;
+
+	gp = (struct wl1271_ini *)(buf+0x1d4);
+	gp->general_params.tx_bip_fem_auto_detect = val;
+
+	size  = sizeof(struct wl1271_ini);
+
+	c = (unsigned char *)gp;
+
+	for (i = 0; i < size; i++)
+		write(fd, c++, 1);
+
+	return 0;
+}
+
+int nvs_set_autofem_128x(int fd, char *buf, unsigned char val)
+{
+	size_t size;
+	struct wl128x_ini *gp;
+	unsigned char *c;
+	int i;
+
+	if (buf == NULL)
+		return 1;
+
+	gp = (struct wl128x_ini *)(buf+0x1d4);
+	gp->general_params.tx_bip_fem_auto_detect = val;
+
+	size  = sizeof(struct wl128x_ini);
+
+	c = (unsigned char *)gp;
+
+	for (i = 0; i < size; i++)
+		write(fd, c++, 1);
+
+	return 0;
+}
+
+int nvs_set_fem_manuf(int fd, char *buf, unsigned char val)
+{
+	size_t size;
+	struct wl1271_ini *gp;
+	unsigned char *c;
+	int i;
+
+	if (buf == NULL)
+		return 1;
+
+	gp = (struct wl1271_ini *)(buf+0x1d4);
+	gp->general_params.tx_bip_fem_manufacturer = val;
+
+	size  = sizeof(struct wl1271_ini);
+
+	c = (unsigned char *)gp;
+
+	for (i = 0; i < size; i++)
+		write(fd, c++, 1);
+
+	return 0;
+}
+
+int nvs_set_fem_manuf_128x(int fd, char *buf, unsigned char val)
+{
+	size_t size;
+	struct wl128x_ini *gp;
+	unsigned char *c;
+	int i;
+
+	if (buf == NULL)
+		return 1;
+
+	gp = (struct wl128x_ini *)(buf+0x1d4);
+	gp->general_params.tx_bip_fem_manufacturer = val;
+
+	size  = sizeof(struct wl128x_ini);
+
+	c = (unsigned char *)gp;
+
+	for (i = 0; i < size; i++)
+		write(fd, c++, 1);
+
+	return 0;
+}
+
 static struct wl12xx_nvs_ops wl1271_nvs_ops = {
 	.nvs_fill_radio_prms = nvs_fill_radio_params,
+	.nvs_set_autofem = nvs_set_autofem,
+	.nvs_set_fem_manuf = nvs_set_fem_manuf,
 };
 
 static struct wl12xx_nvs_ops wl128x_nvs_ops = {
 	.nvs_fill_radio_prms = nvs_fill_radio_params_128x,
+	.nvs_set_autofem = nvs_set_autofem_128x,
+	.nvs_set_fem_manuf = nvs_set_fem_manuf_128x,
 };
 
 int get_mac_addr(int ifc_num, unsigned char *mac_addr)
@@ -615,3 +711,96 @@ int dump_nvs_file(const char *nvs_file, struct wl12xx_common *cmn)
 
 	return 0;
 }
+
+int set_nvs_file_autofem(const char *nvs_file, unsigned char val,
+	struct wl12xx_common *cmn)
+{
+	int new_nvs, res = 0;
+	char buf[2048];
+	int nvs_file_sz;
+
+	res = read_nvs(nvs_file, buf, BUF_SIZE_4_NVS_FILE, &nvs_file_sz);
+	if (res)
+		return 1;
+
+	if (nvs_get_arch(nvs_file_sz, cmn)) {
+		fprintf(stderr, "Fail to define architecture\n");
+		return 1;
+	}
+
+	cfg_nvs_ops(cmn);
+
+	/* create new NVS file */
+	new_nvs = open(NEW_NVS_NAME,
+		O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+	if (new_nvs < 0) {
+		fprintf(stderr, "%s> Unable to open new NVS file\n", __func__);
+		return 1;
+	}
+
+	/* fill nvs part */
+	if (nvs_upd_nvs_part(new_nvs, buf)) {
+		fprintf(stderr, "Fail to fill NVS part\n");
+		res = 1;
+
+		goto out;
+	}
+
+	/* fill radio params */
+	if (cmn->nvs_ops->nvs_set_autofem(new_nvs, buf, val)) {
+		printf("Fail to fill radio params\n");
+		res = 1;
+	}
+
+out:
+	close(new_nvs);
+
+	return res;
+}
+
+int set_nvs_file_fem_manuf(const char *nvs_file, unsigned char val,
+	struct wl12xx_common *cmn)
+{
+	int new_nvs, res = 0;
+	char buf[2048];
+	int nvs_file_sz;
+
+	res = read_nvs(nvs_file, buf, BUF_SIZE_4_NVS_FILE, &nvs_file_sz);
+	if (res)
+		return 1;
+
+	if (nvs_get_arch(nvs_file_sz, cmn)) {
+		fprintf(stderr, "Fail to define architecture\n");
+		return 1;
+	}
+
+	cfg_nvs_ops(cmn);
+
+	/* create new NVS file */
+	new_nvs = open(NEW_NVS_NAME,
+		O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+	if (new_nvs < 0) {
+		fprintf(stderr, "%s> Unable to open new NVS file\n", __func__);
+		return 1;
+	}
+
+	/* fill nvs part */
+	if (nvs_upd_nvs_part(new_nvs, buf)) {
+		fprintf(stderr, "Fail to fill NVS part\n");
+		res = 1;
+
+		goto out;
+	}
+
+	/* fill radio params */
+	if (cmn->nvs_ops->nvs_set_fem_manuf(new_nvs, buf, val)) {
+		printf("Fail to fill radio params\n");
+		res = 1;
+	}
+
+out:
+	close(new_nvs);
+
+	return res;
+}
+

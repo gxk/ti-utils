@@ -25,6 +25,7 @@
 #include "calibrator.h"
 #include "plt.h"
 #include "ini.h"
+#include "nvs.h"
 
 static char *ini_get_line(char *s, int size, FILE *stream, int *line,
 				  char **_pos)
@@ -171,7 +172,8 @@ static int split_line(char *line, char **name, char **value)
 		return 0;					\
 	}
 
-static int parse_general_prms(char *l, struct wl12xx_ini *p)
+static int parse_general_prms(char *l, struct wl12xx_common *cmn,
+	struct wl12xx_ini *p)
 {
 	char *name, *val;
 	struct wl1271_ini_general_params *gp = &(p->ini1271.general_params);
@@ -197,6 +199,13 @@ static int parse_general_prms(char *l, struct wl12xx_ini *p)
 	COMPARE_N_ADD("Single_Dual_Band_Solution", l, val,
 		&gp->dual_mode_select, 1);
 
+	if (cmn->dual_mode == DUAL_MODE_UNSET)
+		cmn->dual_mode = gp->dual_mode_select;
+	else if (cmn->dual_mode != gp->dual_mode_select) {
+		fprintf(stderr, "Error, FEMs with diferent dual modes\n");
+		return 1;
+	}
+
 	COMPARE_N_ADD("Settings", l, val, &gp->general_settings, 1);
 
 	COMPARE_N_ADD("SRState", l, val, &gp->sr_state, 1);
@@ -210,10 +219,13 @@ static int parse_general_prms(char *l, struct wl12xx_ini *p)
 	COMPARE_N_ADD("SRF3", l, val,
 		gp->srf3, WL1271_INI_MAX_SMART_REFLEX_PARAM);
 
+	fprintf(stderr, "Unable to parse: (%s)\n", l);
+
 	return 1;
 }
 
-static int parse_general_prms_128x(char *l, struct wl12xx_ini *p)
+static int parse_general_prms_128x(char *l, struct wl12xx_common *cmn,
+	struct wl12xx_ini *p)
 {
 	char *name, *val;
 	struct wl128x_ini_general_params *gp =
@@ -251,6 +263,13 @@ static int parse_general_prms_128x(char *l, struct wl12xx_ini *p)
 	COMPARE_N_ADD("Single_Dual_Band_Solution", l, val,
 		&gp->dual_mode_select, 1);
 
+	if (cmn->dual_mode == DUAL_MODE_UNSET)
+		cmn->dual_mode = gp->dual_mode_select;
+	else if (cmn->dual_mode != gp->dual_mode_select) {
+		fprintf(stderr, "Error, FEMs with diferent dual modes\n");
+		return 1;
+	}
+
 	COMPARE_N_ADD("Settings", l, val,
 		gp->general_settings, WL128X_INI_MAX_SETTINGS_PARAM);
 
@@ -266,6 +285,8 @@ static int parse_general_prms_128x(char *l, struct wl12xx_ini *p)
 
 	COMPARE_N_ADD("SRF3", l, val,
 		gp->srf3, WL1271_INI_MAX_SMART_REFLEX_PARAM);
+
+	fprintf(stderr, "Unable to parse: (%s)\n", l);
 
 	return 1;
 }
@@ -289,6 +310,8 @@ static int parse_band2_prms(char *l, struct wl12xx_ini *p)
 		gp->rx_rssi_process_compens,
 		WL1271_INI_RSSI_PROCESS_COMPENS_SIZE);
 
+	fprintf(stderr, "Unable to parse: (%s)\n", l);
+
 	return 1;
 }
 
@@ -305,6 +328,8 @@ static int parse_band2_prms_128x(char *l, struct wl12xx_ini *p)
 
 	COMPARE_N_ADD("TxTraceLoss_2_4G", l, val,
 		gp->tx_trace_loss, WL1271_INI_CHANNEL_COUNT_2);
+
+	fprintf(stderr, "Unable to parse: (%s)\n", l);
 
 	return 1;
 }
@@ -328,6 +353,8 @@ static int parse_band5_prms(char *l, struct wl12xx_ini *p)
 		gp->rx_rssi_process_compens,
 		WL1271_INI_RSSI_PROCESS_COMPENS_SIZE);
 
+	fprintf(stderr, "Unable to parse: (%s)\n", l);
+
 	return 1;
 }
 
@@ -344,6 +371,8 @@ static int parse_band5_prms_128x(char *l, struct wl12xx_ini *p)
 
 	COMPARE_N_ADD("TxTraceLoss_5G", l, val,
 		gp->tx_trace_loss, 7);
+
+	fprintf(stderr, "Unable to parse: (%s)\n", l);
 
 	return 1;
 }
@@ -403,6 +432,8 @@ static int parse_fem0_band2_prms(char *l, struct wl12xx_ini *p)
 	COMPARE_N_ADD("FEM0_RxFemInsertionLoss_2_4G", l, val,
 		&gp->rx_fem_insertion_loss, 1);
 
+	fprintf(stderr, "Unable to parse: (%s)\n", l);
+
 	return 1;
 }
 
@@ -455,8 +486,8 @@ static int parse_fem0_band2_prms_128x(char *l, struct wl12xx_ini *p)
 		WL1271_INI_RATE_GROUP_COUNT);
 
 	COMPARE_N_ADD("FEM0_TxPDVsChannelOffsets_2_4G", l, val,
-		gp->tx_pd_vs_rate_offsets,
-		WL1271_INI_RATE_GROUP_COUNT);
+		gp->tx_pd_vs_chan_offsets,
+		WL1271_INI_CHANNEL_COUNT_2);
 
 	COMPARE_N_ADD("FEM0_TxPDVsTemperature_2_4G", l, val,
 		gp->tx_pd_vs_temperature,
@@ -468,6 +499,8 @@ static int parse_fem0_band2_prms_128x(char *l, struct wl12xx_ini *p)
 
 	COMPARE_N_ADD("FEM0_RxFemInsertionLoss_2_4G", l, val,
 		&gp->rx_fem_insertion_loss, 1);
+
+	fprintf(stderr, "Unable to parse: (%s)\n", l);
 
 	return 1;
 }
@@ -527,6 +560,8 @@ static int parse_fem1_band2_prms(char *l, struct wl12xx_ini *p)
 	COMPARE_N_ADD("FEM1_RxFemInsertionLoss_2_4G", l, val,
 		&gp->rx_fem_insertion_loss, 1);
 
+	fprintf(stderr, "Unable to parse: (%s)\n", l);
+
 	return 1;
 }
 
@@ -578,6 +613,10 @@ static int parse_fem1_band2_prms_128x(char *l, struct wl12xx_ini *p)
 		gp->tx_pd_vs_rate_offsets,
 		WL128X_INI_RATE_GROUP_COUNT);
 
+	COMPARE_N_ADD("FEM1_TxPDVsChannelOffsets_2_4G", l, val,
+		gp->tx_pd_vs_chan_offsets,
+		WL1271_INI_CHANNEL_COUNT_2);
+
 	COMPARE_N_ADD("FEM1_TxPDVsTemperature_2_4G", l, val,
 		gp->tx_pd_vs_temperature,
 		WL128X_INI_PD_VS_TEMPERATURE_RANGES);
@@ -588,6 +627,8 @@ static int parse_fem1_band2_prms_128x(char *l, struct wl12xx_ini *p)
 
 	COMPARE_N_ADD("FEM1_RxFemInsertionLoss_2_4G", l, val,
 		&gp->rx_fem_insertion_loss, 1);
+
+	fprintf(stderr, "Unable to parse: (%s)\n", l);
 
 	return 1;
 }
@@ -642,6 +683,8 @@ static int parse_fem1_band5_prms(char *l, struct wl12xx_ini *p)
 
 	COMPARE_N_ADD("FEM1_RxFemInsertionLoss_5G", l, val,
 		gp->rx_fem_insertion_loss, WL1271_INI_SUB_BAND_COUNT_5);
+
+	fprintf(stderr, "Unable to parse: (%s)\n", l);
 
 	return 1;
 }
@@ -705,6 +748,8 @@ static int parse_fem1_band5_prms_128x(char *l, struct wl12xx_ini *p)
 	COMPARE_N_ADD("FEM1_RxFemInsertionLoss_5G", l, val,
 		gp->rx_fem_insertion_loss, WL1271_INI_SUB_BAND_COUNT_5);
 
+	fprintf(stderr, "Unable to parse: (%s)\n", l);
+
 	return 1;
 }
 
@@ -718,6 +763,8 @@ static int parse_fem_prms_128x(char *l, struct wl12xx_ini *p)
 
 	COMPARE_N_ADD("FemVendorAndOptions", l, val,
 		&gp->fem_vendor_and_options, 1);
+
+	fprintf(stderr, "Unable to parse: (%s)\n", l);
 
 	return 1;
 }
@@ -803,17 +850,19 @@ static int ini_parse_line(char *l, int nbr, struct wl12xx_common *cmn)
 	static int cntr;
 
 	if (!cntr && find_section(l, &status, &cntr, cmn->arch)) {
-		fprintf(stderr, "Uknown ini section\n");
+		fprintf(stderr, "Uknown ini section %s\n", l);
 		return 1;
 	}
 
 	switch (status) {
 	case GENERAL_PRMS:	/* general parameters */
 		cntr--;
-		return cmn->parse_ops->prs_general_prms(l, &cmn->ini);
+		return cmn->parse_ops->prs_general_prms(l, cmn, &cmn->ini);
 	case FEM_PRMS:	/* FEM parameters */
-		if (cmn->arch == WL1271_ARCH)
+		if (cmn->arch == WL1271_ARCH) {
+			fprintf(stderr, "The parameter not from 127x architecture\n");
 			return 1;
+		}
 		cntr--;
 		return parse_fem_prms_128x(l, &cmn->ini);
 	case BAND2_PRMS:	/* band 2.4GHz parameters */
@@ -939,6 +988,31 @@ static struct wl12xx_parse_ops wl128x_parse_ops = {
 	.prs_fem1_band5_prms    = parse_fem1_band5_prms_128x,
 };
 
+int nvs_get_arch(int file_size, struct wl12xx_common *cmn)
+{
+	enum wl12xx_arch arch = UNKNOWN_ARCH;
+
+	switch (file_size) {
+		case WL127X_NVS_FILE_SZ:
+			arch = WL1271_ARCH;
+			cmn->parse_ops = &wl1271_parse_ops;
+			break;
+		case WL128X_NVS_FILE_SZ:
+			arch = WL128X_ARCH;
+			cmn->parse_ops = &wl128x_parse_ops;
+			break;
+	}
+
+	if (cmn->arch != UNKNOWN_ARCH && cmn->arch != arch) {
+		cmn->parse_ops = NULL;
+		return 1;
+	}
+
+	cmn->arch = arch;
+
+	return 0;
+}
+
 static int ini_get_arch(FILE *f, struct wl12xx_common *cmn)
 {
 	char buf[1024], *pos;
@@ -974,22 +1048,32 @@ int read_ini(const char *filename, struct wl12xx_common *cmn)
 {
 	FILE *f;
 	char buf[1024], *pos;
-	int line = 0;
+	int ret = 0, line = 0;
 
 	f = fopen(filename, "r");
-	if (f == NULL)
+	if (f == NULL) {
+		fprintf(stderr, "Unable to open file %s (%s)\n",
+			filename, strerror(errno));
 		return 1;
+	}
 
 	/* check if it 127x or 128x */
-	ini_get_arch(f, cmn);
+	if (ini_get_arch(f, cmn)) {
+		fprintf(stderr, "Unable to define wireless architecture\n");
+		ret = 1;
+		goto out;
+	}
 
 	/* start parsing */
-	while (ini_get_line(buf, sizeof(buf), f, &line, &pos))
-		ini_parse_line(pos, line, cmn);
+	while (ini_get_line(buf, sizeof(buf), f, &line, &pos)) {
+		ret = ini_parse_line(pos, line, cmn);
+		if (ret) break;
+	}
 
+out:
 	fclose(f);
 #if 0
 	ini_dump(ini);
 #endif
-	return 0;
+	return ret;
 }

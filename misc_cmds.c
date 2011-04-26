@@ -72,6 +72,7 @@ cleanup:
 COMMAND(set, push_nvs, "<nvs filename>",
 	NL80211_CMD_TESTMODE, 0, CIB_PHY, handle_push_nvs,
 	"Push NVS file into the system");
+
 #if 0
 static int handle_fetch_nvs(struct nl80211_state *state,
 			struct nl_cb *cb,
@@ -255,19 +256,23 @@ static int set_ref_nvs2(struct nl80211_state *state, struct nl_cb *cb,
 {
 	struct wl12xx_common cmn = {
 		.arch = UNKNOWN_ARCH,
-		.parse_ops = NULL
+		.parse_ops = NULL,
+		.dual_mode = DUAL_MODE_UNSET,
+		.done_fem = NO_FEM_PARSED
 	};
 
 	argc -= 2;
 	argv += 2;
 
-	if (argc != 1)
+	if (argc != 2)
 		return 1;
 
-	if (read_ini(*argv, &cmn)) {
-		fprintf(stderr, "Fail to read ini file\n");
+	if (read_ini(*argv, &cmn))
 		return 1;
-	}
+
+	argv++;
+	if (read_ini(*argv, &cmn))
+		return 1;
 
 	cfg_nvs_ops(&cmn);
 
@@ -350,3 +355,72 @@ static int get_dump_nvs(struct nl80211_state *state, struct nl_cb *cb,
 
 COMMAND(get, dump_nvs, "[<nvs file>]", 0, 0, CIB_NONE, get_dump_nvs,
 	"Dump NVS file, specified by option or current");
+
+static int set_autofem(struct nl80211_state *state, struct nl_cb *cb,
+			struct nl_msg *msg, int argc, char **argv)
+{
+	char *fname = NULL;
+	unsigned char val;
+	struct wl12xx_common cmn = {
+		.arch = UNKNOWN_ARCH,
+		.parse_ops = NULL
+	};
+
+	argc -= 2;
+	argv += 2;
+
+	if (argc < 1) {
+		fprintf(stderr, "Missing argument\n");
+		return 2;
+	}
+
+	sscanf(argv[0], "%2x", (unsigned int *)&val);
+
+	if (argc == 2)
+		fname = argv[1];
+
+	if (set_nvs_file_autofem(fname, val, &cmn)) {
+		fprintf(stderr, "Fail to set AutoFEM\n");
+		return 1;
+	}
+
+	return 0;
+}
+
+COMMAND(set, autofem, "<0-manual|1-auto> [<nvs file>]", 0, 0, CIB_NONE, set_autofem,
+	"Set Auto FEM detection, where 0 - manual, 1 - auto detection");
+
+static int set_fem_manuf(struct nl80211_state *state, struct nl_cb *cb,
+			struct nl_msg *msg, int argc, char **argv)
+{
+	char *fname = NULL;
+	unsigned char val;
+	struct wl12xx_common cmn = {
+		.arch = UNKNOWN_ARCH,
+		.parse_ops = NULL
+	};
+
+	argc -= 2;
+	argv += 2;
+
+	if (argc < 1) {
+		fprintf(stderr, "Missing argument\n");
+		return 2;
+	}
+
+	sscanf(argv[0], "%2x", (unsigned int *)&val);
+
+	if (argc == 2)
+		fname = argv[1];
+
+	if (set_nvs_file_fem_manuf(fname, val, &cmn)) {
+		fprintf(stderr, "Fail to set AutoFEM\n");
+		return 1;
+	}
+
+	return 0;
+}
+
+COMMAND(set, fem_manuf, "<0|1> [<nvs file>]", 0, 0, CIB_NONE, set_fem_manuf,
+	"Set FEM manufacturer");
+
