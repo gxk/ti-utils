@@ -9,7 +9,7 @@
 #  32 - running AP				0010 0000
 #  64 - 1-command calibration			0100 0000
 
-go_version="0.9"
+go_version="0.91"
 usage()
 {
 	echo -e "\tUSAGE:\n\t    `basename $0` <option> [value]"
