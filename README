@@ -74,6 +74,26 @@ Android calibration procedure.
 	adb shell "echo Going to start GUI"
 	adb shell "start"
 
+--- How to calibrate with AutoFEM
+
+The wl12xx driver has ability to use it's NVS file with radio parameters for 2
+different frontend modules. The driver requires firmware at boot time which
+FEM parameters it needs and provides radio parameters according to answer.
+
+There is also scenario when driver decides which radio parameters to give
+to firmware. In such case, 2 parameters should be set. The autofem should be
+0 and fem_manuf should be 0 or 1, depends on FEM manufacturer.
+
+In order to prepare NVS file with radio parameters for 2 FEMs, do follows
+
+	./go.sh -c2 <path to INI file> [<path to INI file>]
+
+There is option to use the feature manualy. In such case, there is need to set
+AutoFEM flag to 0 and explicitly set fem_manuf flag.
+
+	./calibrator set autofem <0-manual|1-auto> [<nvs file>]
+	./calibrator set fem_manuf <0|1> [<nvs file>]
+
 --- How to choose INI file
 
 It is very important to select INI file according to the firmware (see below).
