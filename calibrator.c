@@ -25,7 +25,7 @@
 #include "plt.h"
 #include "ini.h"
 
-char calibrator_version[] = "0.5";
+char calibrator_version[] = "0.71";
 #ifndef CONFIG_LIBNL20
 /* libnl 2.0 compatibility code */
 
@@ -208,7 +208,7 @@ TOPLEVEL(help, NULL, 0, 0, CIB_NONE, print_help,
 
 static void usage_cmd(const struct cmd *cmd)
 {
-	printf("Usage:\t%s [options] ", argv0);
+	printf("\nUsage:\t%s [options] ", argv0);
 	__usage_cmd(cmd, "", true);
 	usage_options();
 }

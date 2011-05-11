@@ -9,16 +9,16 @@
 #  32 - running AP				0010 0000
 #  64 - 1-command calibration			0100 0000
 
-go_version="0.8"
+go_version="0.91"
 usage()
 {
 	echo -e "\tUSAGE:\n\t    `basename $0` <option> [value]"
 	echo -e "\t\t-b <value> - bootlevel, where\n\t\t\t7-PLT boot"
 	echo -e "\t\t\t15-full boot"
-	echo -e "\t\t-c <path to INI file> [path to install NVS] -
-run calibration"
-	echo -e "\t\t-c2 <path to INI file> <path to INI file> -
-run calibration with 2 FEM"
+	echo -e "\t\t-c <path to INI file> [path to install NVS] -" \
+"run calibration"
+	echo -e "\t\t-c2 <path to INI file> <path to INI file> -" \
+"run calibration with 2 FEMs"
 	echo -e "\t\t\twhere the default value for install path is "
 	echo -e "\t\t\t/lib/firmware/ti-connectivity/wl1271-nvs.bin"
 	echo -e "\t\t-d <value> - debuglevel, where"
@@ -102,7 +102,7 @@ do
 				exit 1
 			fi
 
-			bootlevel=66
+			bootlevel=34
 			have_path_to_ini=`expr $have_path_to_ini + 1`
 			path_to_ini=$2
 			path_to_ini2=$3
@@ -189,6 +189,10 @@ case $bootlevel in
 	16) stage_sedici=`expr $stage_sedici + 1`
 	;;
 	32) stage_trentadue=`expr $stage_trentadue + 1`
+	;;
+	34)
+	    stage_due=`expr $stage_due + 1`
+	    stage_trentadue=`expr $stage_trentadue + 1`
 	;;
 	64) stage_sessanta_quattro=`expr $stage_sessanta_quattro + 1`
 	;;
@@ -312,8 +316,101 @@ if [ "$stage_sedici" -ne "0" ]; then
 	echo performance > /sys/devices/system/cpu/cpu1/cpufreq/scaling_governor
 fi
 
-#if [ "$stage_trentadue" -ne "0" ]; then
-#fi
+if [ "$stage_trentadue" -ne "0" ]; then
+
+	if [ "$have_path_to_ini" -eq "0" ]; then
+		echo -e "Missing ini file parameter"
+		exit 1
+	fi
+
+	# 1. unload wl12xx kernel modules
+	echo -e "+++ Unload wl12xx driver"
+	run_it=`cat /proc/modules | grep "wl12xx_sdio"`
+	if [ "$run_it" != "" ]; then
+		rmmod wl12xx_sdio
+	fi
+	run_it=`cat /proc/modules | grep "wl12xx"`
+	if [ "$run_it" != "" ]; then
+		rmmod wl12xx
+	fi
+
+	# 2. create reference NVS file with default MAC
+	echo -e "+++ Create reference NVS with $path_to_ini $path_to_ini2"
+	./calibrator set ref_nvs2 $path_to_ini $path_to_ini2
+	if [ "$?" != "0" ]; then
+		echo -e "Fail to tune channel"
+		exit 1
+	fi
+
+	# 3. Set AutoFEM detection to auto
+	echo -e "+++ Set Auto FEM detection to auto"
+	run_it=`./calibrator set nvs_autofem 1 ./new-nvs.bin`
+
+	# 4. copy NVS to proper place
+	echo -e "+++ Copy reference NVS file to $path_to_install"
+	run_it=`cp -f ./new-nvs.bin $path_to_install`
+
+	# 5. load wl12xx kernel modules
+	sh $0 -b 4
+
+	# 6. calibrate
+	echo -e "+++ Calibrate"
+	./calibrator wlan0 plt power_mode on
+	if [ "$?" != "0" ]; then
+		echo -e "Fail to set power mode to on"
+		exit 1
+	fi
+
+	./calibrator wlan0 plt tune_channel 0 7
+	if [ "$?" != "0" ]; then
+		echo -e "Fail to tune channel"
+		exit 1
+	fi
+
+	run_it=`cat $path_to_ini | grep "RxTraceInsertionLoss_5G"`
+	if [ "$run_it" != "" ]; then
+		./calibrator wlan0 plt tx_bip 1 1 1 1 1 1 1 1 $path_to_install
+		if [ "$?" != "0" ]; then
+			echo -e "Fail to calibrate"
+			exit 1
+		fi
+	else
+		./calibrator wlan0 plt tx_bip 1 0 0 0 0 0 0 0 $path_to_install
+		if [ "$?" != "0" ]; then
+			echo -e "Fail to calibrate"
+			exit 1
+		fi
+	fi
+
+	./calibrator wlan0 plt power_mode off
+	if [ "$?" != "0" ]; then
+		echo -e "Fail to set power mode to off"
+		exit 1
+	fi
+
+	# 7. unload wl12xx kernel modules
+	rmmod wl12xx_sdio wl12xx
+
+	# 8. update NVS file with random and valid MAC address
+	echo -e "+++ Update NVS file with random valid MAC address"
+	./calibrator set nvs_mac ./new-nvs.bin
+	if [ "$?" != "0" ]; then
+		echo -e "Fail to set NVS MAC address"
+		exit 1
+	fi
+
+	# 9. copy calibrated NVS file to proper place
+	echo -e "+++ Copy calibrated NVS file to $path_to_install"
+	run_it=`cp -f ./new-nvs.bin $path_to_install`
+
+	# 10. load wl12xx kernel modules
+	if [ ! -e /sys/kernel/debug/tracing ]; then
+		mount -t debugfs none /sys/kernel/debug/
+	fi
+	sh $0 -b 4
+
+	echo -e "\n\tDear Customer, you are ready to use our calibrated device\n"
+fi
 
 #
 # 1-command calibration
@@ -340,7 +437,11 @@ if [ "$stage_sessanta_quattro" -ne "0" ]; then
 
 	# 2. create reference NVS file with default MAC
 	echo -e "+++ Create reference NVS with INI $path_to_ini"
-	run_it=`./calibrator set ref_nvs $path_to_ini`
+	./calibrator set ref_nvs $path_to_ini
+	if [ "$?" != "0" ]; then
+		echo -e "Fail to tune channel"
+		exit 1
+	fi
 
 	# 3. copy NVS to proper place
 	echo -e "+++ Copy reference NVS file to $path_to_install"
