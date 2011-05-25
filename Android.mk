@@ -26,17 +26,17 @@ include $(BUILD_EXECUTABLE)
 #
 # UIM Application
 #
-include $(CLEAR_VARS)
+#include $(CLEAR_VARS)
 
-LOCAL_C_INCLUDES:= \
-	$(LOCAL_PATH)/uim_rfkill/ \
-	external/bluetooth/bluez/
+#LOCAL_C_INCLUDES:= \
+#	$(LOCAL_PATH)/uim_rfkill/ \
+#	external/bluetooth/bluez/
 
-LOCAL_SRC_FILES:= \
-	uim_rfkill/uim.c
-LOCAL_CFLAGS:= -g -c -W -Wall -O2 -D_POSIX_SOURCE
-LOCAL_SHARED_LIBRARIES:= libnetutils
-LOCAL_MODULE_TAGS := eng
-LOCAL_MODULE:=uim-util
+#LOCAL_SRC_FILES:= \
+#	uim_rfkill/uim.c
+#LOCAL_CFLAGS:= -g -c -W -Wall -O2 -D_POSIX_SOURCE
+#LOCAL_SHARED_LIBRARIES:= libnetutils
+#LOCAL_MODULE_TAGS := eng
+#LOCAL_MODULE:=uim-util
 
-include $(BUILD_EXECUTABLE)
+#include $(BUILD_EXECUTABLE)
