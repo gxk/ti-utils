@@ -231,17 +231,42 @@ destination directory (usually /lib/firmware).
 
 --- Miscellaneous procedures
 
-Read MAC address from NVS file:
+	Read MAC address from NVS file
+
 calibrator get nvs_mac <nvs filename>
 
-Push local NVS to the system:
+
+	Push local NVS to the system:
+
 calibrator phy <phyname> set push_nvs <nvs filename>
 
-Set NVS to use auto FEM detection 
+
+	Set NVS to use auto FEM detection 
+
 calibrator set autofem 1
 
-Set FEM manufacturer
+
+	Set FEM manufacturer
+
 calibrator set fem_manuf 0|1
+
+
+	Tone transmission testing
+Get in PLT mode
+calibrator wlan0 plt power_mode on
+
+Run TxTone transmission
+calibrator set plt_tx_tone <power> <tone type>
+Power
+Tone type
+ 1 - Single tone
+ 2 - Carrier FeedThrough
+
+Stop transmission
+calibrator wlan0 plt tx_stop
+
+Get out from PLT mode
+calibrator wlan0 plt power_mode off
 
 -------------------------------------------------------------------------------
 

@@ -213,6 +213,15 @@ struct wl1271_cmd_cal_update_ref_point {
 	unsigned char  padding[3];
 } __attribute__((packed));
 
+struct wl1271_cmd_cal_tx_tone {
+	struct wl1271_cmd_header header;
+
+	struct wl1271_cmd_test_header test;
+
+	__le32 power;
+	__le32 tone_type;
+} __attribute__((packed));
+
 struct wl1271_cmd_cal_p2g {
 	struct wl1271_cmd_header header;
 

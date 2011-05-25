@@ -79,7 +79,7 @@ nla_put_failure:
 
 COMMAND(plt, power_mode, "<on|off>",
 	NL80211_CMD_TESTMODE, 0, CIB_NETDEV, plt_power_mode,
-	"Set PLT power mode.\n");
+	"Set PLT power mode\n");
 
 static int plt_tune_channel(struct nl80211_state *state, struct nl_cb *cb,
 			struct nl_msg *msg, int argc, char **argv)
@@ -116,7 +116,7 @@ nla_put_failure:
 
 COMMAND(plt, tune_channel, "<band> <channel>",
 	NL80211_CMD_TESTMODE, 0, CIB_NETDEV, plt_tune_channel,
-	"Set band and channel for PLT.\n");
+	"Set band and channel for PLT\n");
 
 static int plt_ref_point(struct nl80211_state *state, struct nl_cb *cb,
 			struct nl_msg *msg, int argc, char **argv)
@@ -152,7 +152,7 @@ nla_put_failure:
 
 COMMAND(plt, ref_point, "<voltage> <power> <subband>",
 	NL80211_CMD_TESTMODE, 0, CIB_NETDEV, plt_ref_point,
-	"Set reference point for PLT.\n");
+	"Set reference point for PLT\n");
 
 static int calib_valid_handler(struct nl_msg *msg, void *arg)
 {
@@ -218,8 +218,10 @@ static int plt_tx_bip(struct nl80211_state *state, struct nl_cb *cb,
 	int i;
 	char nvs_path[PATH_MAX];
 
-	if (argc < 8)
-		return 1;
+	if (argc < 8) {
+		fprintf(stderr, "%s> Missing arguments\n", __func__);
+		return 2;
+	}
 
 	if (argc > 8)
 		strncpy(nvs_path, argv[8], strlen(argv[8]));
@@ -256,7 +258,46 @@ nla_put_failure:
 COMMAND(plt, tx_bip,
 	"<0|1> <0|1> <0|1> <0|1> <0|1> <0|1> <0|1> <0|1> [<nvs file>]",
 	NL80211_CMD_TESTMODE, 0, CIB_NETDEV, plt_tx_bip,
-	"Do calibrate.\n");
+	"Do calibrate\n");
+
+static int plt_tx_tone(struct nl80211_state *state, struct nl_cb *cb,
+			struct nl_msg *msg, int argc, char **argv)
+{
+	struct nlattr *key;
+	struct wl1271_cmd_cal_tx_tone prms;
+
+	if (argc < 2) {
+		fprintf(stderr, "%s> Missing arguments\n", __func__);
+		return 2;
+	}
+
+	memset(&prms, 0, sizeof(struct wl1271_cmd_cal_tx_tone));
+
+	prms.test.id = TEST_CMD_TELEC;
+	prms.power = atoi(argv[0]);
+	prms.tone_type = atoi(argv[1]);
+
+	key = nla_nest_start(msg, NL80211_ATTR_TESTDATA);
+	if (!key) {
+		fprintf(stderr, "fail to nla_nest_start()\n");
+		return 1;
+	}
+
+	NLA_PUT_U32(msg, WL1271_TM_ATTR_CMD_ID, WL1271_TM_CMD_TEST);
+	NLA_PUT(msg, WL1271_TM_ATTR_DATA, sizeof(prms), &prms);
+
+	nla_nest_end(msg, key);
+
+	return 0;
+
+nla_put_failure:
+	fprintf(stderr, "%s> building message failed\n", __func__);
+	return 2;
+}
+
+COMMAND(plt, tx_tone, "<power> <tone type>",
+	NL80211_CMD_TESTMODE, 0, CIB_NETDEV, plt_tx_tone,
+	"Do command tx_tone to transmit a tone\n");
 
 static int plt_tx_cont(struct nl80211_state *state, struct nl_cb *cb,
 			struct nl_msg *msg, int argc, char **argv)
