@@ -274,8 +274,20 @@ static int plt_tx_tone(struct nl80211_state *state, struct nl_cb *cb,
 	memset(&prms, 0, sizeof(struct wl1271_cmd_cal_tx_tone));
 
 	prms.test.id = TEST_CMD_TELEC;
-	prms.power = atoi(argv[0]);
-	prms.tone_type = atoi(argv[1]);
+
+	prms.tone_type = atoi(argv[0]);
+	if (prms.tone_type < 1 || prms.tone_type > 2) {
+		fprintf(stderr, "%s> Invalit tone type parameter %d\n",
+			__func__, prms.tone_type);
+		return 2;
+	}
+
+	prms.power = atoi(argv[1]);
+	if (prms.power > 10000) {
+		fprintf(stderr, "%s> Invalit power parameter %d\n",
+			__func__, prms.power);
+		return 2;
+	}
 
 	key = nla_nest_start(msg, NL80211_ATTR_TESTDATA);
 	if (!key) {
@@ -295,7 +307,7 @@ nla_put_failure:
 	return 2;
 }
 
-COMMAND(plt, tx_tone, "<power> <tone type>",
+COMMAND(plt, tx_tone, "<tone type 1|2> <power 0 - 10000>",
 	NL80211_CMD_TESTMODE, 0, CIB_NETDEV, plt_tx_tone,
 	"Do command tx_tone to transmit a tone\n");
 

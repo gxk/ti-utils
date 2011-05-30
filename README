@@ -256,11 +256,11 @@ Get in PLT mode
 calibrator wlan0 plt power_mode on
 
 Run TxTone transmission
-calibrator set plt_tx_tone <power> <tone type>
-Power
+calibrator set plt_tx_tone <tone type> <power>
 Tone type
- 1 - Single tone
- 2 - Carrier FeedThrough
+    1 - Single tone
+    2 - Carrier FeedThrough
+Power [0 - 10000] mdB
 
 Stop transmission
 calibrator wlan0 plt tx_stop
