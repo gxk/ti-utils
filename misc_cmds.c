@@ -155,7 +155,7 @@ static int set_nvs_mac(struct nl80211_state *state, struct nl_cb *cb,
 			struct nl_msg *msg, int argc, char **argv)
 {
 	unsigned char mac_buff[12];
-	unsigned char in_mac[6];
+	unsigned int in_mac[6];
 	int fd;
 
 	argc -= 2;
@@ -166,18 +166,18 @@ static int set_nvs_mac(struct nl80211_state *state, struct nl_cb *cb,
 
 	if (argc == 2)
 		sscanf(argv[1], "%2x:%2x:%2x:%2x:%2x:%2x",
-		(unsigned int *)&in_mac[0], (unsigned int *)&in_mac[1],
-		(unsigned int *)&in_mac[2], (unsigned int *)&in_mac[3],
-		(unsigned int *)&in_mac[4], (unsigned int *)&in_mac[5]);
+		&in_mac[0], &in_mac[1],
+		&in_mac[2], &in_mac[3],
+		&in_mac[4], &in_mac[5]);
 	else {
 		srand((unsigned)time(NULL));
 
 		in_mac[0] = 0x0;
-		in_mac[1] = rand()%256;
-		in_mac[2] = rand()%256;
-		in_mac[3] = rand()%256;
-		in_mac[4] = rand()%256;
-		in_mac[5] = rand()%256;
+		in_mac[1] = rand();
+		in_mac[2] = rand();
+		in_mac[3] = rand();
+		in_mac[4] = rand();
+		in_mac[5] = rand();
 	}
 
 	fd = open(argv[0], O_RDWR);
@@ -187,15 +187,7 @@ static int set_nvs_mac(struct nl80211_state *state, struct nl_cb *cb,
 	}
 
 	read(fd, mac_buff, 12);
-#if 0
-	printf("Got MAC addr for NVS: %02x:%02x:%02x:%02x:%02x:%02x\n",
-		in_mac[0], in_mac[1], in_mac[2],
-		in_mac[3], in_mac[4], in_mac[5]);
 
-	printf("Got MAC addr from NVS: %02x:%02x:%02x:%02x:%02x:%02x\n",
-		mac_buff[11], mac_buff[10], mac_buff[6],
-		mac_buff[5], mac_buff[4], mac_buff[3]);
-#endif
 	mac_buff[11] = in_mac[0];
 	mac_buff[10] = in_mac[1];
 	mac_buff[6]  = in_mac[2];
