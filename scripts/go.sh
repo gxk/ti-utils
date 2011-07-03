@@ -9,7 +9,7 @@
 #  32 - running AP				0010 0000
 #  64 - 1-command calibration			0100 0000
 
-go_version="0.91"
+go_version="0.92"
 usage()
 {
 	echo -e "\tUSAGE:\n\t    `basename $0` <option> [value]"
@@ -23,6 +23,7 @@ usage()
 	echo -e "\t\t\t/lib/firmware/ti-connectivity/wl1271-nvs.bin"
 	echo -e "\t\t-d <value> - debuglevel, where"
 	echo -e "\t\t\t  -1      - shows current value
+\t\t\tDEBUG_NONE      = 0
 \t\t\tDEBUG_IRQ       = BIT(0)
 \t\t\tDEBUG_SPI       = BIT(1)
 \t\t\tDEBUG_BOOT      = BIT(2)
@@ -40,6 +41,8 @@ usage()
 \t\t\tDEBUG_SDIO      = BIT(14)
 \t\t\tDEBUG_FILTERS   = BIT(15)
 \t\t\tDEBUG_ADHOC     = BIT(16)
+\t\t\tDEBUG_AP        = BIT(17)
+\t\t\tDEBUG_MASTER    = (DEBUG_ADHOC | DEBUG_AP)
 \t\t\tDEBUG_ALL       = ~0"
 	echo -e "\t\t-m <value> - set MAC address"
 	echo -e "\t\t-ip [value] - set IP address"
