@@ -109,12 +109,8 @@ static int split_line(char *line, char **name, char **value)
 #define COMPARE_N_ADD(temp, str, val, ptr, size)		\
 	if (strncmp(temp, str, sizeof(temp)) == 0) {		\
 		int i;						\
-		unsigned char *p = ptr;				\
-		for (i = 0; i < size; i++) {			\
-			*p = strtol(val, NULL, 16);		\
-			if (i != sizeof(ptr)-1) {		\
-				val += 3; p++;			\
-			}					\
+		for (i = 0; i < size; i++, val += 3) {		\
+			(ptr)[i] = strtol(val, NULL, 16);	\
 		}						\
 		return 0;					\
 	}
@@ -122,17 +118,12 @@ static int split_line(char *line, char **name, char **value)
 #define DBG_COMPARE_N_ADD(temp, str, val, ptr, size)		\
 	if (strncmp(temp, str, sizeof(temp)) == 0) {		\
 		int i;						\
-		unsigned char *p = ptr;				\
-		for (i = 0; i < size; i++) {			\
-			*p = strtol(val, NULL, 16);		\
-			if (i != sizeof(ptr)-1) {		\
-				val += 3; p++;			\
-			}					\
+		for (i = 0; i < size; i++, val += 3) {		\
+			(ptr)[i] = strtol(val, NULL, 16);	\
 		}						\
-		p = ptr;					\
 		printf("%s ", temp);				\
 		for (i = 0; i < size; i++) {			\
-			printf("%02X ", *p);			\
+			printf("%02X ", (ptr)[i]);		\
 			p++;					\
 		}						\
 		printf("\n");					\
@@ -142,12 +133,8 @@ static int split_line(char *line, char **name, char **value)
 #define COMPARE_N_ADD2(temp, str, val, ptr, size)		\
 	if (strncmp(temp, str, sizeof(temp)) == 0) {		\
 		int i;						\
-		unsigned short *p = ptr;			\
-		for (i = 0; i < size; i++) {			\
-			*p = strtol(val, NULL, 16);		\
-			if (i != sizeof(ptr)-1) {		\
-				val += 5; p++;			\
-			}					\
+		for (i = 0; i < size; i++, val += 5) {		\
+			(ptr)[i] = strtol(val, NULL, 16);	\
 		}						\
 		return 0;					\
 	}
@@ -155,19 +142,12 @@ static int split_line(char *line, char **name, char **value)
 #define DBG_COMPARE_N_ADD2(temp, str, val, ptr, size)		\
 	if (strncmp(temp, str, sizeof(temp)) == 0) {		\
 		int i;						\
-		unsigned short *p = ptr;			\
-		for (i = 0; i < size; i++) {			\
-			*p = strtol(val, NULL, 16);		\
-			if (i != sizeof(ptr)-1) {		\
-				val += 5; p++;			\
-			}					\
+		for (i = 0; i < size; i++, val += 5) {		\
+			(ptr)[i] = strtol(val, NULL, 16);	\
 		}						\
-		p = ptr;					\
 		printf("%s ", temp);				\
-		for (i = 0; i < size; i++) {			\
-			printf("%04X ", *p);			\
-			p++;					\
-		}						\
+		for (i = 0; i < size; i++)  			\
+			printf("%04X ", (ptr)[i]);		\
 		printf("\n");					\
 		return 0;					\
 	}
