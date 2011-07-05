@@ -256,7 +256,7 @@ Get in PLT mode
 calibrator wlan0 plt power_mode on
 
 Run TxTone transmission
-calibrator set plt_tx_tone <tone type> <power>
+calibrator wlan0 plt tx_tone <tone type> <power>
 Tone type
     1 - Single tone
     2 - Carrier FeedThrough
