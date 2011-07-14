@@ -5,22 +5,22 @@
 #   2 - load mav80211				0000 0010
 #   4 - load driver				0000 0100
 #   8 - up dev, load wpa_supplicant		0000 1000
-#  16 - Settings for Android            	0001 0000
-#  32 - running AP				0010 0000
+#  32 - running calibration			0010 0000
 #  64 - 1-command calibration			0100 0000
 
-go_version="0.92"
+go_version="0.95"
 usage()
 {
 	echo -e "\tUSAGE:\n\t    `basename $0` <option> [value]"
-	echo -e "\t\t-b <value> - bootlevel, where\n\t\t\t7-PLT boot"
-	echo -e "\t\t\t15-full boot"
+	#echo -e "\t\t-b <value> - bootlevel, where\n\t\t\t7-PLT boot"
+	#echo -e "\t\t\t15-full boot"
 	echo -e "\t\t-c <path to INI file> [path to install NVS] -" \
 "run calibration"
 	echo -e "\t\t-c2 <path to INI file> <path to INI file> -" \
 "run calibration with 2 FEMs"
 	echo -e "\t\t\twhere the default value for install path is "
 	echo -e "\t\t\t/lib/firmware/ti-connectivity/wl1271-nvs.bin"
+	echo -e "\t\t-cont - run TxCont command sequence"
 	echo -e "\t\t-d <value> - debuglevel, where"
 	echo -e "\t\t\t  -1      - shows current value
 \t\t\tDEBUG_NONE      = 0
@@ -44,10 +44,214 @@ usage()
 \t\t\tDEBUG_AP        = BIT(17)
 \t\t\tDEBUG_MASTER    = (DEBUG_ADHOC | DEBUG_AP)
 \t\t\tDEBUG_ALL       = ~0"
-	echo -e "\t\t-m <value> - set MAC address"
-	echo -e "\t\t-ip [value] - set IP address"
+	echo -e "\t\t-mac <NVS file> <MAC address> - set MAC address in NVS file"
+	echo -e "\t\t-ip [device number] [IP address] - set IP address for wlan device"
+	echo -e "\t\t-u - unload wireless driver"
 	echo -e "\t\t-v - get script version"
 	echo -e "\t\t-h - get this help"
+}
+
+set_dynamic_debug()
+{
+	if [ ! -e /sys/module/wl12xx/parameters/debug_level ]; then
+		echo -e "\nThe wl12xx not loaded"
+		return 1
+	fi
+
+	if [ ! -e /sys/kernel/debug/dynamic_debug/control ]; then
+		echo -e "\nMissing /sys/kernel/debug/dynamic_debug/control"
+		return 1
+	fi
+
+	case "$dbg_lvl" in
+		-1)
+			dbg_lvl=`cat /sys/module/wl12xx/parameters/debug_level`
+			echo -e "\ndbg lvl: $dbg_lvl\n"
+		;;
+		*)
+			echo "$dbg_lvl" > /sys/module/wl12xx/parameters/debug_level
+			echo 'module cfg80211 +p' > /sys/kernel/debug/dynamic_debug/control
+			echo 'module mac80211 +p' > /sys/kernel/debug/dynamic_debug/control
+			echo 'module wl12xx +p' > /sys/kernel/debug/dynamic_debug/control
+			echo 'module wl12xx_sdio +p' > /sys/kernel/debug/dynamic_debug/control
+		;;
+	esac
+
+	return 0
+}
+
+mount_debugfs()
+{
+	if [ "$is_android" -eq "0" ]; then
+		if [ ! -e /sys/kernel/debug/tracing ]; then
+			mount -t debugfs none /sys/kernel/debug/
+		fi
+	fi
+}
+
+load_wl12xx_driver()
+{
+	echo -e "+++ Load wl12xx driver"
+
+	if [ "$is_android" -eq "0" ]; then
+		depmod -a
+		modprobe wl12xx_sdio
+	else
+		run_it=`cat /proc/modules | grep "wl12xx"`
+		if [ "$run_it" == "" ]; then
+			"$insmode_path"insmod /system/lib/modules/wl12xx.ko
+		fi
+
+		if [ "$?" != "0" ]; then
+			echo -e "Fail to load wl12xx"
+			return 1
+		fi
+
+		run_it=`cat /proc/modules | grep "wl12xx_sdio"`
+		if [ "$run_it" == "" ]; then
+			"$insmode_path"insmod /system/lib/modules/wl12xx_sdio.ko
+		fi
+
+		if [ "$?" != "0" ]; then
+			echo -e "Fail to load wl12xx_sdio"
+			return 1
+		fi
+	fi
+
+	sleep 1
+	if [ -e /sys/kernel/debug/tracing ]; then
+		echo 1 > /sys/kernel/debug/tracing/events/mac80211/enable
+	fi
+
+	return 0
+}
+
+# get parameter number of modules to remove
+# 2 - both wl12xx_sdio and wl12xx
+# 1 - only wl12xx_sdio
+unload_wl12xx_driver()
+{
+	local nbr_of_modules=2
+
+	if [ "$#" -eq "1" ]; then
+		nbr_of_modules=$1
+	fi
+
+	if [ "$interactive" -eq "1" ]; then
+		echo -e "\n\tRemove wl12xx_sdio"
+	fi
+	run_it=`cat /proc/modules | grep "wl12xx_sdio"`
+	if [ "$run_it" != "" ]; then
+		"$rmmod_path"rmmod wl12xx_sdio
+	fi
+
+	if [ "$nbr_of_modules" -eq "2" ]; then
+
+		if [ "$interactive" -eq "1" ]; then
+			echo -e "\n\tRemove wl12xx"
+		fi
+		run_it=`cat /proc/modules | grep "wl12xx"`
+		if [ "$run_it" != "" ]; then
+			"$rmmod_path"rmmod wl12xx
+		fi
+	fi
+}
+
+cmd_power_mode()
+{
+	"$path_to_calib"calibrator wlan0 plt power_mode $1
+	if [ "$?" != "0" ]; then
+		echo -e "Fail to set power mode to $1"
+		return 1
+	fi
+
+	return 0
+}
+
+# get parameters: band, channel
+cmd_tune_channel()
+{
+	"$path_to_calib"calibrator wlan0 plt tune_channel $1 $2
+	if [ "$?" != "0" ]; then
+		echo -e "Fail to tune channel"
+		exit 1
+	fi
+}
+
+cmd_tx_bip()
+{
+	run_it=`cat $path_to_ini | grep "RxTraceInsertionLoss_5G"`
+	if [ "$run_it" != "" ]; then
+		"$path_to_calib"calibrator wlan0 plt tx_bip 1 1 1 1 1 1 1 1 $path_to_install
+		if [ "$?" != "0" ]; then
+			echo -e "Fail to calibrate"
+			return 1
+		fi
+	else
+		"$path_to_calib"calibrator wlan0 plt tx_bip 1 0 0 0 0 0 0 0 $path_to_install
+		if [ "$?" != "0" ]; then
+			echo -e "Fail to calibrate"
+			return 1
+		fi
+	fi
+
+	return 0
+}
+
+cmd_tx_stop()
+{
+	"$path_to_calib"calibrator wlan0 plt tx_stop
+	if [ "$?" != "0" ]; then
+		echo -e "Fail to stop"
+		return 1
+	fi
+
+	return 0
+}
+
+cmd_tx_cont()
+{
+	"$path_to_calib"calibrator wlan0 plt tx_cont 2000 1 100 0 5000 0 3 0 0 0 0 0 1 0 00:22:33:90:64:31
+	if [ "$?" != "0" ]; then
+		echo -e "Fail to cont"
+		return 1
+	fi
+
+	return 0
+}
+
+# parameters
+#    path to NVS file where to set MAC address
+#    MAC address
+cmd_set_mac_address()
+{
+	if [ "$interactive" -eq "1" ]; then
+		echo -e "Going to set MAC address $mac_addr"
+	fi
+
+	"$path_to_calib"calibrator set nvs_mac $1 $2
+	if [ "$?" != "0" ]; then
+		echo -e "Fail to set NVS MAC address"
+		return 1
+	fi
+
+	return 0
+}
+
+android_start_gui()
+{
+	if [ "$is_android" -eq "1" ]; then
+		start
+		sleep 2
+	fi
+}
+
+android_stop_gui()
+{
+	if [ "$is_android" -eq "1" ]; then
+		stop
+		sleep 2
+	fi
 }
 
 i=0
@@ -56,6 +260,8 @@ bootlevel=0
 dbg_lvl=0
 ref_clk=0
 mac_addr="08:00:28:90:64:31"
+set_mac_addr=0
+wlan_dev="0"
 ip_addr="192.168.1.1"
 set_ip_addr=0
 have_path_to_ini=0
@@ -64,18 +270,16 @@ path_to_ini2=""
 have_path_to_install=0
 path_to_install="/lib/firmware/ti-connectivity/wl1271-nvs.bin"
 is_android=0
-prefix_path2modules=
+path_to_calib="./"
+interactive=0
 while [ "$i" -lt "$nbr_args" ]
 do
 	case $1 in
-		-b) bootlevel=$2
-		nbr_args=`expr $nbr_args - 1`
-		shift
+		-b)
+			bootlevel=$2
+			nbr_args=`expr $nbr_args - 1`
+			shift
 		;;
-		#-r) ref_clk=$2
-		#nbr_args=`expr $nbr_args - 1`
-		#shift
-		#;;
 		-c)
 			if [ "$nbr_args" -lt "2" ]; then
 				echo -e "missing arguments"
@@ -113,22 +317,48 @@ do
 			shift
 			shift
 		;;
-		-d) dbg_lvl=$2
-		nbr_args=`expr $nbr_args - 1`
-		shift
+		-cont)  # running TxCont procedure
+			bootlevel=16
+			nbr_args=`expr $nbr_args - 1`
+			shift
 		;;
-		-m) mac_addr=$2
-		nbr_args=`expr $nbr_args - 1`
-		shift
+		-d)
+			interactive=`expr $interactive + 1`
+			dbg_lvl=$2
+			nbr_args=`expr $nbr_args - 1`
+			shift
+			set_dynamic_debug
+			exit 0
 		;;
-		-ip) set_ip_addr=`expr $set_ip_addr + 1`
+		-mac)
+			if [ "$nbr_args" -lt "3" ]; then
+				echo -e "missing arguments"
+				exit 1
+			fi
+			interactive=`expr $interactive + 1`
+			have_path_to_install=`expr $have_path_to_install + 1`
+			path_to_install=$2
+			mac_addr=$3
+			set_mac_addr=`expr $set_mac_addr + 1`
+			nbr_args=`expr $nbr_args - 2`
+			shift
+		;;
+		-ip)
+			if [ "$nbr_args" -lt "3" ]; then
+				echo -e "missing arguments"
+				exit 1
+			fi
+			interactive=`expr $interactive + 1`
+			set_ip_addr=`expr $set_ip_addr + 1`
 			case $2 in
 				"") echo -e "using default ip address"
 				;;
 				-*) echo -e "this is another option"
 				;;
-				*) ip_addr=$2
-				nbr_args=`expr $nbr_args - 1`
+				*)
+				wlan_dev=$2
+				ip_addr=$3
+				nbr_args=`expr $nbr_args - 2`
 				shift
 				;;
 			esac
@@ -139,11 +369,18 @@ do
 			nbr_args=`expr $nbr_args - 1`
 			shift
 		;;
-		-v)
-		echo -e "\tgo.sh version $go_version"
+		-u)
+			interactive=`expr $interactive + 1`
+			unload_wl12xx_driver
 		;;
-		-h) usage
-		exit 0
+		-v)
+			interactive=`expr $interactive + 1`
+			echo -e "\tgo.sh version $go_version"
+		;;
+		-h)
+			interactive=`expr $interactive + 1`
+			usage
+			exit 0
 		;;
 		*) echo -e "\tNothing to do"
 		;;
@@ -205,9 +442,11 @@ case $bootlevel in
 	;;
 esac
 
-echo -e "\t------------         ------------\n"
-echo -e "\t---===<<<((( WELCOME )))>>>===---\n"
-echo -e "\t------------         ------------\n"
+	if [ "$interactive" -eq "0" ]; then
+		echo -e "\t------------         ------------\n"
+		echo -e "\t---===<<<((( WELCOME )))>>>===---\n"
+		echo -e "\t------------         ------------\n"
+	fi
 
 insmod_path=
 rmmod_path=
@@ -217,6 +456,8 @@ if [ $ANDROID_ROOT ]; then
 	prefix_path2modules="/system/"
 	insmod_path="/system/bin/"
 	rmmod_path="/system/bin/"
+	path_to_calib=""
+	path_to_install="/system/etc/firmware/ti-connectivity/wl1271-nvs.bin"
 fi
 
 if [ "$stage_uno" -ne "0" ]; then
@@ -228,68 +469,36 @@ if [ "$stage_uno" -ne "0" ]; then
 		/libexec/inetd /etc/inetd.conf &
 	fi
 
-	if [ ! -e /sys/kernel/debug/tracing ]; then
-		mount -t debugfs none /sys/kernel/debug/
-	fi
+	mount_debugfs
 fi
 
 if [ "$stage_due" -ne "0" ]; then
-	echo -e "+++ Load mac80211, cfg80211, crc7 and firmware_class"
+	echo -e "+++ Load mac80211, cfg80211"
 
-	run_it=`cat /proc/modules | grep "cfg80211"`
-	if [ "$run_it" == "" ]; then
-		"$insmod_path"insmod /lib/modules/`uname -r`/kernel/net/wireless/cfg80211.ko
-	fi
-	run_it=`cat /proc/modules | grep "mac80211"`
-	if [ "$run_it" == "" ]; then
-		insmod /lib/modules/`uname -r`/kernel/net/mac80211/mac80211.ko
-	fi
-	run_it=`cat /proc/modules | grep "crc7"`
-	if [ "$run_it" == "" ]; then
-		insmod /lib/modules/`uname -r`/kernel/lib/crc7.ko
-	fi
-	run_it=`cat /proc/modules | grep "firmware_class"`
-	if [ "$run_it" == "" ]; then
-		insmod /lib/modules/`uname -r`/kernel/drivers/base/firmware_class.ko
+	if [ "$is_android" -eq "0" ]; then
+		depmod -a
+		modprobe mac80211
+	else
+		run_it=`cat /proc/modules | grep "compat"`
+		if [ "$run_it" == "" ]; then
+			"$insmode_path"insmod /system/lib/modules/compat.ko
+		fi
+		run_it=`cat /proc/modules | grep "cfg80211"`
+		if [ "$run_it" == "" ]; then
+			"$insmode_path"insmod /system/lib/modules/cfg80211.ko
+		fi
+		run_it=`cat /proc/modules | grep "mac80211"`
+		if [ "$run_it" == "" ]; then
+			"$insmode_path"insmod /system/lib/modules/mac80211.ko
+		fi
 	fi
 fi
 
 if [ "$stage_quattro" -ne "0" ]; then
-	echo -e "+++ Load wl12xx driver, enable mac80211 tracing"
-
-	run_it=`cat /proc/modules | grep "wl12xx"`
-	if [ "$run_it" == "" ]; then
-		if [ "$is_android" -eq "0" ]; then
-			"$insmod_path"insmod /lib/modules/`uname -r`/kernel/drivers/net/wireless/wl12xx/wl12xx.ko
-		else
-			"$insmod_path"insmod /system/lib/modules/wl12xx.ko
-		fi
-		if [ "$?" != "0" ]; then
-			echo -e "Fail to load wl12xx"
-			exit 1
-		fi
+	load_wl12xx_driver
+	if [ "$?" != "0" ]; then
+		exit 1
 	fi
-
-	run_it=`cat /proc/modules | grep "wl12xx_sdio"`
-	if [ "$run_it" == "" ]; then
-		if [ "$is_android" -eq "0" ]; then
-			"$insmod_path"insmod /lib/modules/`uname -r`/kernel/drivers/net/wireless/wl12xx/wl12xx_sdio.ko
-		else
-			insmod /system/lib/modules/wl12xx_sdio.ko
-		fi
-		if [ "$?" != "0" ]; then
-			echo -e "Fail to load wl12xx_sdio"
-			exit 1
-		fi
-	fi
-
-	sleep 1
-	if [ -e /sys/kernel/debug/tracing ]; then
-		echo 1 > /sys/kernel/debug/tracing/events/mac80211/enable
-	fi
-
-	#ifconfig wlan0 hw ether $mac_addr
-	#cat /sys/kernel/debug/mmc2/ios
 fi
 
 if [ "$stage_otto" -ne "0" ]; then
@@ -301,22 +510,44 @@ if [ "$stage_otto" -ne "0" ]; then
 		exit 1
 	fi
 
-	sleep 1
-	iw event > /var/log/iwevents &
-
-	#wpa_supplicant -P/var/run/wpa_supplicant.pid -iwlan0
-	#	-c/etc/wpa_supplicant.conf -Dnl80211 -f/var/log/wpa_supplicant.log &
-	#iw wlan0 cqm rssi -55 2
-	#wpa_supplicant -ddt -iwlan0 -c/etc/wpa_supplicant.conf -Dnl80211 -f/var/log/wpa.log &
 	wpa_supplicant -iwlan0 -c/etc/wpa_supplicant.conf -Dnl80211 &
-	#python /usr/share/peripherals-test-autom/dut.py -v &
 fi
 
 if [ "$stage_sedici" -ne "0" ]; then
-	echo manual_lock > /sys/power/wake_lock
-	echo performance > /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
-	echo 1 > /sys/devices/system/cpu/cpu1/online
-	echo performance > /sys/devices/system/cpu/cpu1/cpufreq/scaling_governor
+
+	android_stop_gui
+
+	load_wl12xx_driver
+	if [ "$?" != "0" ]; then
+		exit 1
+	fi
+
+	cmd_power_mode on
+	if [ "$?" != "0" ]; then
+		exit 1
+	fi
+
+	cmd_tune_channel 0 7
+	if [ "$?" != "0" ]; then
+		exit 1
+	fi
+
+	cmd_tx_cont
+	if [ "$?" != "0" ]; then
+		exit 1
+	fi
+
+	cmd_tx_stop
+	if [ "$?" != "0" ]; then
+		exit 1
+	fi
+
+	cmd_power_mode off
+	if [ "$?" != "0" ]; then
+		exit 1
+	fi
+
+	android_start_gui
 fi
 
 if [ "$stage_trentadue" -ne "0" ]; then
@@ -326,20 +557,15 @@ if [ "$stage_trentadue" -ne "0" ]; then
 		exit 1
 	fi
 
+	android_stop_gui
+
 	# 1. unload wl12xx kernel modules
 	echo -e "+++ Unload wl12xx driver"
-	run_it=`cat /proc/modules | grep "wl12xx_sdio"`
-	if [ "$run_it" != "" ]; then
-		rmmod wl12xx_sdio
-	fi
-	run_it=`cat /proc/modules | grep "wl12xx"`
-	if [ "$run_it" != "" ]; then
-		rmmod wl12xx
-	fi
+	unload_wl12xx_driver
 
 	# 2. create reference NVS file with default MAC
 	echo -e "+++ Create reference NVS with $path_to_ini $path_to_ini2"
-	./calibrator set ref_nvs2 $path_to_ini $path_to_ini2
+	"$path_to_calib"calibrator set ref_nvs2 $path_to_ini $path_to_ini2
 	if [ "$?" != "0" ]; then
 		echo -e "Fail to tune channel"
 		exit 1
@@ -347,78 +573,68 @@ if [ "$stage_trentadue" -ne "0" ]; then
 
 	# 3. Set AutoFEM detection to auto
 	echo -e "+++ Set Auto FEM detection to auto"
-	run_it=`./calibrator set nvs_autofem 1 ./new-nvs.bin`
+	run_it=`\"$path_to_calib\"calibrator set nvs_autofem 1 ./new-nvs.bin`
 
 	# 4. copy NVS to proper place
-	echo -e "+++ Copy reference NVS file to $path_to_install"
-	run_it=`cp -f ./new-nvs.bin $path_to_install`
+	if [ "$is_android" -eq "0" ]; then
+		run_it=`cp -f ./new-nvs.bin $path_to_install`
+	else
+		run_it=`cat ./new-nvs.bin > $path_to_install`
+	fi
 
 	# 5. load wl12xx kernel modules
-	sh $0 -b 4
+	load_wl12xx_driver
 
 	# 6. calibrate
 	echo -e "+++ Calibrate"
-	./calibrator wlan0 plt power_mode on
+	cmd_power_mode on
 	if [ "$?" != "0" ]; then
-		echo -e "Fail to set power mode to on"
 		exit 1
 	fi
 
-	./calibrator wlan0 plt tune_channel 0 7
+	cmd_tune_channel 0 7
 	if [ "$?" != "0" ]; then
-		echo -e "Fail to tune channel"
 		exit 1
 	fi
 
-	run_it=`cat $path_to_ini | grep "RxTraceInsertionLoss_5G"`
-	if [ "$run_it" != "" ]; then
-		./calibrator wlan0 plt tx_bip 1 1 1 1 1 1 1 1 $path_to_install
-		if [ "$?" != "0" ]; then
-			echo -e "Fail to calibrate"
-			exit 1
-		fi
-	else
-		./calibrator wlan0 plt tx_bip 1 0 0 0 0 0 0 0 $path_to_install
-		if [ "$?" != "0" ]; then
-			echo -e "Fail to calibrate"
-			exit 1
-		fi
+	cmd_tx_bip
+	if [ "$?" != "0" ]; then
+		exit 1
 	fi
 
-	./calibrator wlan0 plt power_mode off
+	cmd_power_mode off
 	if [ "$?" != "0" ]; then
-		echo -e "Fail to set power mode to off"
 		exit 1
 	fi
 
 	# 7. unload wl12xx kernel modules
-	rmmod wl12xx_sdio wl12xx
+	unload_wl12xx_driver
 
 	# 8. update NVS file with random and valid MAC address
 	echo -e "+++ Update NVS file with random valid MAC address"
-	./calibrator set nvs_mac ./new-nvs.bin
+	cmd_set_mac_address ./new-nvs.bin
 	if [ "$?" != "0" ]; then
-		echo -e "Fail to set NVS MAC address"
 		exit 1
 	fi
 
 	# 9. copy calibrated NVS file to proper place
 	echo -e "+++ Copy calibrated NVS file to $path_to_install"
-	run_it=`cp -f ./new-nvs.bin $path_to_install`
+	if [ "$is_android" -eq "1" ]; then
+		run_it=`cat ./new-nvs.bin > $path_to_install`
+	else
+		run_it=`cp -f ./new-nvs.bin $path_to_install`
+	fi
 
 	# 10. load wl12xx kernel modules
-	if [ ! -e /sys/kernel/debug/tracing ]; then
-		mount -t debugfs none /sys/kernel/debug/
-	fi
-	sh $0 -b 4
+	load_wl12xx_driver
 
-	echo -e "\n\tDear Customer, you are ready to use our calibrated device\n"
+	mount_debugfs
+
+	echo -e "\n\tDear Customer, you are  ready  to "
+	echo -e "\t\tuse our calibrated  device\n"
+
+	android_start_gui
 fi
-
-#
-# 1-command calibration
-# parameters are INI file, path where to install NVS (default /lib/firmware)
-#
 
 if [ "$stage_sessanta_quattro" -ne "0" ]; then
 
@@ -427,20 +643,15 @@ if [ "$stage_sessanta_quattro" -ne "0" ]; then
 		exit 1
 	fi
 
+	android_stop_gui
+
 	# 1. unload wl12xx kernel modules
 	echo -e "+++ Unload wl12xx driver"
-	run_it=`cat /proc/modules | grep "wl12xx_sdio"`
-	if [ "$run_it" != "" ]; then
-		rmmod wl12xx_sdio
-	fi
-	run_it=`cat /proc/modules | grep "wl12xx"`
-	if [ "$run_it" != "" ]; then
-		rmmod wl12xx
-	fi
+	unload_wl12xx_driver
 
 	# 2. create reference NVS file with default MAC
 	echo -e "+++ Create reference NVS with INI $path_to_ini"
-	./calibrator set ref_nvs $path_to_ini
+	"$path_to_calib"calibrator set ref_nvs $path_to_ini
 	if [ "$?" != "0" ]; then
 		echo -e "Fail to tune channel"
 		exit 1
@@ -448,85 +659,76 @@ if [ "$stage_sessanta_quattro" -ne "0" ]; then
 
 	# 3. copy NVS to proper place
 	echo -e "+++ Copy reference NVS file to $path_to_install"
-	run_it=`cp -f ./new-nvs.bin $path_to_install`
+	if [ "$is_android" -eq "1" ]; then
+		run_it=`cat ./new-nvs.bin > $path_to_install`
+	else
+		run_it=`cp -f ./new-nvs.bin $path_to_install`
+	fi
 
 	# 4. load wl12xx kernel modules
-	sh $0 -b 4
+	load_wl12xx_driver
 
 	# 5. calibrate
 	echo -e "+++ Calibrate"
-	./calibrator wlan0 plt power_mode on
+	cmd_power_mode on
 	if [ "$?" != "0" ]; then
-		echo -e "Fail to set power mode to on"
 		exit 1
 	fi
 
-	./calibrator wlan0 plt tune_channel 0 7
+	cmd_tune_channel 0 7
 	if [ "$?" != "0" ]; then
-		echo -e "Fail to tune channel"
 		exit 1
 	fi
 
-	run_it=`cat $path_to_ini | grep "RxTraceInsertionLoss_5G"`
-	if [ "$run_it" != "" ]; then
-		./calibrator wlan0 plt tx_bip 1 1 1 1 1 1 1 1 $path_to_install
-		if [ "$?" != "0" ]; then
-			echo -e "Fail to calibrate"
-			exit 1
-		fi
-	else
-		./calibrator wlan0 plt tx_bip 1 0 0 0 0 0 0 0 $path_to_install
-		if [ "$?" != "0" ]; then
-			echo -e "Fail to calibrate"
-			exit 1
-		fi
+	cmd_tx_bip
+	if [ "$?" != "0" ]; then
+		exit 1
 	fi
 
-	./calibrator wlan0 plt power_mode off
+	cmd_power_mode off
 	if [ "$?" != "0" ]; then
-		echo -e "Fail to set power mode to off"
 		exit 1
 	fi
 
 	# 6. unload wl12xx kernel modules
-	rmmod wl12xx_sdio wl12xx
+	unload_wl12xx_driver
 
 	# 7. update NVS file with random and valid MAC address
 	echo -e "+++ Update NVS file with random valid MAC address"
-	./calibrator set nvs_mac ./new-nvs.bin
+	cmd_set_mac_address ./new-nvs.bin
 	if [ "$?" != "0" ]; then
-		echo -e "Fail to set NVS MAC address"
 		exit 1
 	fi
 
 	# 8. copy calibrated NVS file to proper place
 	echo -e "+++ Copy calibrated NVS file to $path_to_install"
-	run_it=`cp -f ./new-nvs.bin $path_to_install`
+	if [ "$is_android" -eq "1" ]; then
+		run_it=`cat ./new-nvs.bin > $path_to_install`
+	else
+		run_it=`cp -f ./new-nvs.bin $path_to_install`
+	fi
 
 	# 9. load wl12xx kernel modules
-	if [ ! -e /sys/kernel/debug/tracing ]; then
-		mount -t debugfs none /sys/kernel/debug/
-	fi
-	sh $0 -b 4
+	load_wl12xx_driver
 
-	echo -e "\n\tDear Customer, you are ready to use our calibrated device\n"
-fi
+	mount_debugfs
 
-if [ "$dbg_lvl" -eq "-1" ] && [ -e /sys/module/wl12xx/parameters/debug_level ]; then
-	dbg_lvl=`cat /sys/module/wl12xx/parameters/debug_level`
-	echo -e "\ndbg lvl: $dbg_lvl\n"
-elif [ "$dbg_lvl" -ne "0" ] && [ -e /sys/module/wl12xx/parameters/debug_level ]; then
-	echo "$dbg_lvl" > /sys/module/wl12xx/parameters/debug_level
+	echo -e "\n\tDear Customer, you are  ready  to "
+	echo -e "\t\tuse our calibrated  device\n"
 
-	echo 'module cfg80211 +p' > /sys/kernel/debug/dynamic_debug/control
-	echo 'module mac80211 +p' > /sys/kernel/debug/dynamic_debug/control
-	echo 'module wl12xx +p' > /sys/kernel/debug/dynamic_debug/control
-	echo 'module wl12xx_sdio +p' > /sys/kernel/debug/dynamic_debug/control
+	android_start_gui
 fi
 
 if [ "$set_ip_addr" -ne "0" ]; then
 	echo -e "Going to set IP $ip_addr"
-	ifconfig wlan0 $ip_addr up
+	ifconfig wlan$wlan_dev $ip_addr up
+fi
+
+if [ "$set_mac_addr" -ne "0" ]; then
+	cmd_set_mac_address $path_to_install $mac_addr
+	if [ "$?" != "0" ]; then
+		exit 1
+	fi
 fi
 
 exit 0
