@@ -22,7 +22,9 @@ static: $(OBJS)
 install:
 	@echo Copy files to $(NFSROOT)/home/root
 	@cp -f ./calibrator $(NFSROOT)/home/root
-	@cp -f ./scripts/go.sh $(NFSROOT)/home/root
+	@chmod 755 $(NFSROOT)/home/root/calibrator
+	@cp -f ./scripts/wl12xx-tool.sh $(NFSROOT)/home/root
+	@chmod 755 $(NFSROOT)/home/root/wl12xx-tool.sh
 
 clean:
 	@rm -f *.o calibrator uim

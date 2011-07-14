@@ -30,13 +30,14 @@ export CROSS_COMPILE=arm-none-linux-gnueabi-
 make
 make install
 
-Make sure that calibrator utility and go.sh script placed in the same dir.
+Make sure that calibrator utility and wl12xx-tool.sh script placed at 
+the same dir.
 
 --- How to calibrate
 
 Native Linux calibration procedure.
 
-	./go.sh -c <path to INI file> [<path to firmware directory>]
+	./wl12xx-tool.sh -c <path to INI file> [<path to firmware directory>]
 
 Android calibration procedure.
 
@@ -86,7 +87,7 @@ to firmware. In such case, 2 parameters should be set. The autofem should be
 
 In order to prepare NVS file with radio parameters for 2 FEMs, do follows
 
-	./go.sh -c2 <path to INI file> [<path to INI file>]
+	./wl12xx-tool.sh -c2 <path to INI file> [<path to INI file>]
 
 There is option to use the feature manualy. In such case, there is need to set
 AutoFEM flag to 0 and explicitly set fem_manuf flag.
