@@ -182,7 +182,7 @@ static int parse_general_prms(char *l, struct wl12xx_common *cmn,
 	if (cmn->dual_mode == DUAL_MODE_UNSET)
 		cmn->dual_mode = gp->dual_mode_select;
 	else if (cmn->dual_mode != gp->dual_mode_select) {
-		fprintf(stderr, "Error, FEMs with different dual modes\n");
+		fprintf(stderr, "Error, FEMs with non-compatible dual modes\n");
 		return 1;
 	}
 
@@ -246,7 +246,7 @@ static int parse_general_prms_128x(char *l, struct wl12xx_common *cmn,
 	if (cmn->dual_mode == DUAL_MODE_UNSET)
 		cmn->dual_mode = gp->dual_mode_select;
 	else if (cmn->dual_mode != gp->dual_mode_select) {
-		fprintf(stderr, "Error, FEMs with diferent dual modes\n");
+		fprintf(stderr, "Error, FEMs with non-compatible dual modes\n");
 		return 1;
 	}
 
