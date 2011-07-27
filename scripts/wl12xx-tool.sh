@@ -14,10 +14,10 @@ usage()
 	echo -e "\tUSAGE:\n\t    `basename $0` <option> [value]"
 	#echo -e "\t\t-b <value> - bootlevel, where\n\t\t\t7-PLT boot"
 	#echo -e "\t\t\t15-full boot"
-	echo -e "\t\t-c <path to INI file> [path to install NVS] -" \
+	echo -e "\t\t-c <path to INI file> [MAC address] -" \
 "run calibration"
-	echo -e "\t\t-c2 <path to INI file> <path to INI file> -" \
-"run calibration with 2 FEMs"
+	echo -e "\t\t-c2 <path to INI file> <path to INI file> " \
+"[MAC address] - run calibration with 2 FEMs"
 	echo -e "\t\t\twhere the default value for install path is "
 	echo -e "\t\t\t/lib/firmware/ti-connectivity/wl1271-nvs.bin"
 	echo -e "\t\t-cont - run TxCont command sequence"
@@ -290,15 +290,11 @@ do
 			have_path_to_ini=`expr $have_path_to_ini + 1`
 			path_to_ini=$2
 			if [ "$nbr_args" -eq "2" ]; then
-				echo -e "    The install path not provided"
-				echo -e "    Use default ($path_to_install)"
 				nbr_args=`expr $nbr_args - 1`
 				shift
 				break
 			fi
-
-			have_path_to_install=`expr $have_path_to_install + 1`
-			path_to_install=$3
+			mac_addr=$3
 			nbr_args=`expr $nbr_args - 2`
 			shift
 			shift
@@ -313,7 +309,15 @@ do
 			have_path_to_ini=`expr $have_path_to_ini + 1`
 			path_to_ini=$2
 			path_to_ini2=$3
-			nbr_args=`expr $nbr_args - 2`
+			if [ "$nbr_args" -eq "3" ]; then
+				nbr_args=`expr $nbr_args - 2`
+				shift
+				shift
+				break
+			fi
+			mac_addr=$4
+			nbr_args=`expr $nbr_args - 3`
+			shift
 			shift
 			shift
 		;;
@@ -573,7 +577,11 @@ if [ "$stage_trentadue" -ne "0" ]; then
 
 	# 3. Set AutoFEM detection to auto
 	echo -e "+++ Set Auto FEM detection to auto"
-	run_it=`\"$path_to_calib\"calibrator set nvs_autofem 1 ./new-nvs.bin`
+	"$path_to_calib"calibrator set autofem 1 ./new-nvs.bin
+	if [ "$?" != "0" ]; then
+		echo -e "Fail to tune channel"
+		exit 1
+	fi
 
 	# 4. copy NVS to proper place
 	if [ "$is_android" -eq "0" ]; then
@@ -610,9 +618,9 @@ if [ "$stage_trentadue" -ne "0" ]; then
 	# 7. unload wl12xx kernel modules
 	unload_wl12xx_driver
 
-	# 8. update NVS file with random and valid MAC address
-	echo -e "+++ Update NVS file with random valid MAC address"
-	cmd_set_mac_address ./new-nvs.bin
+	# 8. update MAC address in the NVS file
+	echo -e "+++ Update MAC address in the NVS file"
+	cmd_set_mac_address ./new-nvs.bin $mac_addr
 	if [ "$?" != "0" ]; then
 		exit 1
 	fi
@@ -693,9 +701,9 @@ if [ "$stage_sessanta_quattro" -ne "0" ]; then
 	# 6. unload wl12xx kernel modules
 	unload_wl12xx_driver
 
-	# 7. update NVS file with random and valid MAC address
-	echo -e "+++ Update NVS file with random valid MAC address"
-	cmd_set_mac_address ./new-nvs.bin
+	# 7. update MAC address in the NVS file
+	echo -e "+++ Update MAC address in the NVS file"
+	cmd_set_mac_address ./new-nvs.bin $mac_addr
 	if [ "$?" != "0" ]; then
 		exit 1
 	fi
