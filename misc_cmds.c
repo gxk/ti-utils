@@ -4,10 +4,10 @@
 #include <net/if.h>
 #include <unistd.h>
 #include <sys/types.h>
+#include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <sys/mman.h>
-
 #include "calibrator.h"
 #include "plt.h"
 #include "ini.h"
@@ -417,4 +417,21 @@ static int set_fem_manuf(struct nl80211_state *state, struct nl_cb *cb,
 
 COMMAND(set, fem_manuf, "<0|1> [<nvs file>]", 0, 0, CIB_NONE, set_fem_manuf,
 	"Set FEM manufacturer");
+
+static int get_drv_info(struct nl80211_state *state, struct nl_cb *cb,
+			struct nl_msg *msg, int argc, char **argv)
+{
+	argc -= 2;
+	argv += 2;
+
+	if (argc < 1) {
+		fprintf(stderr, "Missing argument (device name)\n");
+		return 2;
+	}
+
+	return do_get_drv_info(argv[0], NULL);
+}
+
+COMMAND(get, drv_info, "<device name>", 0, 0, CIB_NONE, get_drv_info,
+	"Get driver information: PG version");
 

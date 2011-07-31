@@ -280,8 +280,8 @@ enum wl1271_ini_section {
 
 enum wl12xx_arch {
 	UNKNOWN_ARCH,
-	WL1271_ARCH,
-	WL128X_ARCH
+	WL1271_ARCH = 0x0403,
+	WL128X_ARCH = 0x0503
 };
 
 struct wl12xx_ini {

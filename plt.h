@@ -22,9 +22,6 @@
 #define START_PARAM_INDEX               \
 (START_LENGTH_INDEX + TLV_LENGTH_LENGTH) /* 3 */
 
-#define NVS_VERSION_1                   1
-#define NVS_VERSION_2                   2
-
 #define NVS_MAC_FIRST_LENGTH_INDEX      0
 #define NVS_MAC_FIRST_LENGHT_VALUE      1
 
@@ -176,6 +173,8 @@ enum wl1271_test_cmds {
 	TEST_CMD_SMART_REFLEX,
 	TEST_CMD_CHANNEL_RESPONSE,
 	TEST_CMD_DCO_ITRIM_FEATURE,
+	TEST_CMD_INI_FILE_RF_EXTENDED_PARAM, /* !!! Not exists in 128x */
+	TEST_CMD_SET_NVS_VERSION, /* For wl128x, the value is minus 1 */
 	MAX_TEST_CMD_ID = 0xFF
 };
 
@@ -220,6 +219,20 @@ struct wl1271_cmd_cal_tx_tone {
 
 	__le32 tone_type;
 	__le32 power;
+} __attribute__((packed));
+
+#define NVS_VERSION_2		2
+#define NVS_VERSION_2_1		21
+
+struct wl1271_cmd_set_nvs_ver {
+	struct wl1271_cmd_header header;
+
+	struct wl1271_cmd_test_header test;
+
+	__le16 radio_status;
+
+	unsigned char  nvs_ver;
+	unsigned char  padding;
 } __attribute__((packed));
 
 struct wl1271_cmd_cal_p2g {
@@ -368,5 +381,7 @@ enum EFUSE_PARAMETER_TYPE_ENMT {
 int get_mac_addr(int ifc_num, unsigned char *mac_addr);
 
 int file_exist(const char *filename);
+
+int do_get_drv_info(char *dev_name, int *arch);
 
 #endif /* __PLT_H */

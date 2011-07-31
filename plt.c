@@ -20,12 +20,17 @@
 #include <netlink/msg.h>
 #include <netlink/attr.h>
 #include <linux/wireless.h>
+#include <linux/ethtool.h>
 #include "nl80211.h"
 
 #include "calibrator.h"
 #include "plt.h"
 #include "ini.h"
 #include "nvs.h"
+
+#ifndef SIOCETHTOOL
+#define SIOCETHTOOL     0x8946
+#endif
 
 SECTION(plt);
 
@@ -209,6 +214,134 @@ static int calib_valid_handler(struct nl_msg *msg, void *arg)
 #endif
 	return NL_SKIP;
 }
+
+static void dump_regs(struct ethtool_drvinfo *info, struct ethtool_regs *regs)
+{
+	printf("\n\tDriver %s\n\t"
+		   "version %s\n\t"
+		   "FW version %s\n\t"
+		   "Bus info %s\n\t"
+		   "HW version 0x%X\n",
+		info->driver, info->version,
+		info->fw_version, info->bus_info, regs->version);
+}
+
+int do_get_drv_info(char *dev_name, int *hw_ver)
+{
+	struct ifreq ifr;
+	int fd, err;
+	struct ethtool_drvinfo drvinfo;
+	struct ethtool_regs *regs;
+
+	memset(&ifr, 0, sizeof(ifr));
+	strcpy(ifr.ifr_name, dev_name);
+
+	fd = socket(AF_INET, SOCK_DGRAM, 0);
+	if (fd < 0) {
+		fprintf(stderr, "Cannot get control socket\n");
+		return 1;
+	}
+
+	drvinfo.cmd = ETHTOOL_GDRVINFO;
+	ifr.ifr_data = (caddr_t)&drvinfo;
+	err = ioctl(fd, SIOCETHTOOL, &ifr);
+	if (err < 0) {
+		fprintf(stderr, "Cannot get driver information\n");
+		goto error_out;
+	}
+
+	regs = calloc(1, sizeof(*regs)+drvinfo.regdump_len);
+	if (!regs) {
+		fprintf(stderr, "Cannot allocate memory for register dump\n");
+		goto error_out;
+	}
+
+	regs->cmd = ETHTOOL_GREGS;
+	regs->len = drvinfo.regdump_len;
+	ifr.ifr_data = (caddr_t)regs;
+	err = ioctl(fd, SIOCETHTOOL, &ifr);
+	if (err < 0) {
+		fprintf(stderr, "Cannot get register dump\n");
+		goto error_out2;
+	}
+
+	if (hw_ver)
+		*hw_ver = regs->version;
+	else
+		dump_regs(&drvinfo, regs);
+	free(regs);
+
+	return 0;
+
+error_out2:
+	free(regs);
+
+error_out:
+	close(fd);
+
+	return 1;
+}
+
+static int get_chip_arch(char *dev_name, enum wl12xx_arch *arch)
+{
+	int hw_ver, ret;
+
+	ret = do_get_drv_info(dev_name, &hw_ver);
+	if (ret)
+		return 1;
+
+	*arch = hw_ver >> 16;
+
+	return 0;
+}
+
+static int plt_nvs_ver(struct nl80211_state *state, struct nl_cb *cb,
+			struct nl_msg *msg, int argc, char **argv)
+{
+	struct nlattr *key;
+	struct wl1271_cmd_set_nvs_ver prms;
+	enum wl12xx_arch arch = UNKNOWN_ARCH;
+	int ret;
+
+	if (argc < 1) {
+		fprintf(stderr, "Missing device name\n");
+		return 2;
+	}
+
+	ret = get_chip_arch(argv[0], &arch);
+	if (ret || (arch == UNKNOWN_ARCH)) {
+		fprintf(stderr, "Unknown chip arch\n");
+		return 2;
+	}
+
+	memset(&prms, 0, sizeof(struct wl1271_cmd_set_nvs_ver));
+	if (arch == WL1271_ARCH)
+		prms.test.id = TEST_CMD_SET_NVS_VERSION;
+	else
+		prms.test.id = TEST_CMD_SET_NVS_VERSION - 1;
+	prms.nvs_ver = NVS_VERSION_2_1;
+
+	key = nla_nest_start(msg, NL80211_ATTR_TESTDATA);
+	if (!key) {
+		fprintf(stderr, "fail to nla_nest_start()\n");
+		return 1;
+	}
+
+	NLA_PUT_U32(msg, WL1271_TM_ATTR_CMD_ID, WL1271_TM_CMD_TEST);
+	NLA_PUT(msg, WL1271_TM_ATTR_DATA, sizeof(prms), &prms);
+
+	nla_nest_end(msg, key);
+
+	return 0;
+
+nla_put_failure:
+	fprintf(stderr, "%s> building message failed\n", __func__);
+	return 2;
+}
+
+COMMAND(plt, nvs_ver, "<device name>",
+	NL80211_CMD_TESTMODE, 0, CIB_PHY, plt_nvs_ver,
+	"Set NVS version\n");
 
 static int plt_tx_bip(struct nl80211_state *state, struct nl_cb *cb,
 			struct nl_msg *msg, int argc, char **argv)

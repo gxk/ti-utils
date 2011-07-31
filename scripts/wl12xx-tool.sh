@@ -46,6 +46,7 @@ usage()
 	echo -e "\t\t-mac <NVS file> <MAC address> - set MAC address in NVS file"
 	echo -e "\t\t-ip [device number] [IP address] - set IP address for wlan device"
 	echo -e "\t\t-u - unload wireless driver"
+	echo -e "\t\t-ua - unload wireless framework (mac80211)"
 	echo -e "\t\t-h - get this help"
 }
 
@@ -85,6 +86,55 @@ mount_debugfs()
 			mount -t debugfs none /sys/kernel/debug/
 		fi
 	fi
+}
+
+# parameter - 0-unload, 1-load
+manage_mac80211()
+{
+	local param=$1
+
+	if [ "$param" -eq "1" ]; then
+		echo -e "+++ Reload mac80211 framework"
+	else
+		echo -e "+++ Unload mac80211 framework"
+	fi
+
+	if [ "$is_android" -eq "0" ]; then
+		depmod -a
+		modprobe -r mac80211
+		if [ "$param" -eq "1" ]; then
+			modprobe mac80211
+		fi
+	else
+		run_it=`cat /proc/modules | grep "cfg80211"`
+		if [ "$run_it" != "" ]; then
+			"$rmmod_path"rmmod cfg80211
+		fi
+		run_it=`cat /proc/modules | grep "mac80211"`
+		if [ "$run_it" != "" ]; then
+			"$rmmod_path"rmmod mac80211
+		fi
+		run_it=`cat /proc/modules | grep "compat"`
+		if [ "$run_it" != "" ]; then
+			"$rmmod_path"rmmod compat
+		fi
+		if [ "$param" -eq "1" ]; then
+			run_it=`cat /proc/modules | grep "cfg80211"`
+			if [ "$run_it" == "" ]; then
+				"$insmode_path"insmod /system/lib/modules/cfg80211.ko
+			fi
+			run_it=`cat /proc/modules | grep "mac80211"`
+			if [ "$run_it" == "" ]; then
+				"$insmode_path"insmod /system/lib/modules/mac80211.ko
+			fi
+			run_it=`cat /proc/modules | grep "compat"`
+			if [ "$run_it" == "" ]; then
+				"$insmode_path"insmod /system/lib/modules/compat.ko
+			fi
+		fi
+	fi
+
+	return 0
 }
 
 load_wl12xx_driver()
@@ -131,6 +181,8 @@ unload_wl12xx_driver()
 {
 	local nbr_of_modules=2
 
+	echo -e "+++ Unload wl12xx driver"
+
 	if [ "$#" -eq "1" ]; then
 		nbr_of_modules=$1
 	fi
@@ -153,6 +205,8 @@ unload_wl12xx_driver()
 			"$rmmod_path"rmmod wl12xx
 		fi
 	fi
+
+	return 0
 }
 
 cmd_power_mode()
@@ -172,8 +226,21 @@ cmd_tune_channel()
 	"$path_to_calib"calibrator wlan0 plt tune_channel $1 $2
 	if [ "$?" != "0" ]; then
 		echo -e "Fail to tune channel"
-		exit 1
+		return 1
 	fi
+
+	return 0
+}
+
+cmd_nvs_ver()
+{
+	"$path_to_calib"calibrator phy0 plt nvs_ver wlan0
+	if [ "$?" != "0" ]; then
+		echo -e "Command nvs version failed"
+		return 1
+	fi
+
+	return 0
 }
 
 cmd_tx_bip()
@@ -272,6 +339,7 @@ path_to_calib="./"
 interactive=0
 insmod_path=
 rmmod_path=
+support_nvs20=0
 
 if [ $ANDROID_ROOT ]; then
 	is_android=`expr $is_android + 1`
@@ -296,7 +364,7 @@ do
 				exit 1
 			fi
 
-			bootlevel=66
+			bootlevel=64
 			have_path_to_ini=`expr $have_path_to_ini + 1`
 			path_to_ini=$2
 			if [ "$nbr_args" -eq "2" ]; then
@@ -315,7 +383,7 @@ do
 				exit 1
 			fi
 
-			bootlevel=34
+			bootlevel=32
 			have_path_to_ini=`expr $have_path_to_ini + 1`
 			path_to_ini=$2
 			path_to_ini2=$3
@@ -357,6 +425,10 @@ do
 			nbr_args=`expr $nbr_args - 2`
 			shift
 		;;
+		-nvs20)
+			support_nvs20=`expr $support_nvs20 + 1`
+			shift
+		;;
 		-ip)
 			if [ "$nbr_args" -lt "3" ]; then
 				echo -e "missing arguments"
@@ -386,6 +458,13 @@ do
 		-u)
 			interactive=`expr $interactive + 1`
 			unload_wl12xx_driver
+			shift
+		;;
+		-ua)
+			interactive=`expr $interactive + 1`
+			unload_wl12xx_driver
+			manage_mac80211 0
+			shift
 		;;
 		-h)
 			interactive=`expr $interactive + 1`
@@ -471,25 +550,7 @@ if [ "$stage_uno" -ne "0" ]; then
 fi
 
 if [ "$stage_due" -ne "0" ]; then
-	echo -e "+++ Load mac80211, cfg80211"
-
-	if [ "$is_android" -eq "0" ]; then
-		depmod -a
-		modprobe mac80211
-	else
-		run_it=`cat /proc/modules | grep "compat"`
-		if [ "$run_it" == "" ]; then
-			"$insmode_path"insmod /system/lib/modules/compat.ko
-		fi
-		run_it=`cat /proc/modules | grep "cfg80211"`
-		if [ "$run_it" == "" ]; then
-			"$insmode_path"insmod /system/lib/modules/cfg80211.ko
-		fi
-		run_it=`cat /proc/modules | grep "mac80211"`
-		if [ "$run_it" == "" ]; then
-			"$insmode_path"insmod /system/lib/modules/mac80211.ko
-		fi
-	fi
+	manage_mac80211 1
 fi
 
 if [ "$stage_quattro" -ne "0" ]; then
@@ -558,8 +619,8 @@ if [ "$stage_trentadue" -ne "0" ]; then
 	android_stop_gui
 
 	# 1. unload wl12xx kernel modules
-	echo -e "+++ Unload wl12xx driver"
 	unload_wl12xx_driver
+	manage_mac80211 1
 
 	# 2. create reference NVS file with default MAC
 	echo -e "+++ Create reference NVS with $path_to_ini $path_to_ini2"
@@ -596,11 +657,21 @@ if [ "$stage_trentadue" -ne "0" ]; then
 
 	cmd_tune_channel 0 7
 	if [ "$?" != "0" ]; then
+		cmd_power_mode off
 		exit 1
+	fi
+
+	if [ "$support_nvs20" -eq "0" ]; then
+		cmd_nvs_ver
+		if [ "$?" != "0" ]; then
+			cmd_power_mode off
+			exit 1
+		fi
 	fi
 
 	cmd_tx_bip
 	if [ "$?" != "0" ]; then
+		cmd_power_mode off
 		exit 1
 	fi
 
@@ -628,6 +699,7 @@ if [ "$stage_trentadue" -ne "0" ]; then
 	fi
 
 	# 10. load wl12xx kernel modules
+	manage_mac80211 1
 	load_wl12xx_driver
 
 	mount_debugfs
@@ -648,8 +720,8 @@ if [ "$stage_sessanta_quattro" -ne "0" ]; then
 	android_stop_gui
 
 	# 1. unload wl12xx kernel modules
-	echo -e "+++ Unload wl12xx driver"
 	unload_wl12xx_driver
+	manage_mac80211 1
 
 	# 2. create reference NVS file with default MAC
 	echo -e "+++ Create reference NVS with INI $path_to_ini"
@@ -679,11 +751,21 @@ if [ "$stage_sessanta_quattro" -ne "0" ]; then
 
 	cmd_tune_channel 0 7
 	if [ "$?" != "0" ]; then
+		cmd_power_mode off
 		exit 1
+	fi
+
+	if [ "$support_nvs20" -eq "0" ]; then
+		cmd_nvs_ver
+		if [ "$?" != "0" ]; then
+			cmd_power_mode off
+			exit 1
+		fi
 	fi
 
 	cmd_tx_bip
 	if [ "$?" != "0" ]; then
+		cmd_power_mode off
 		exit 1
 	fi
 
@@ -711,6 +793,7 @@ if [ "$stage_sessanta_quattro" -ne "0" ]; then
 	fi
 
 	# 9. load wl12xx kernel modules
+	manage_mac80211 1
 	load_wl12xx_driver
 
 	mount_debugfs
