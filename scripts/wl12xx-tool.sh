@@ -8,7 +8,6 @@
 #  32 - running calibration			0010 0000
 #  64 - 1-command calibration			0100 0000
 
-go_version="0.95"
 usage()
 {
 	echo -e "\tUSAGE:\n\t    `basename $0` <option> [value]"
@@ -47,7 +46,6 @@ usage()
 	echo -e "\t\t-mac <NVS file> <MAC address> - set MAC address in NVS file"
 	echo -e "\t\t-ip [device number] [IP address] - set IP address for wlan device"
 	echo -e "\t\t-u - unload wireless driver"
-	echo -e "\t\t-v - get script version"
 	echo -e "\t\t-h - get this help"
 }
 
@@ -272,6 +270,18 @@ path_to_install="/lib/firmware/ti-connectivity/wl1271-nvs.bin"
 is_android=0
 path_to_calib="./"
 interactive=0
+insmod_path=
+rmmod_path=
+
+if [ $ANDROID_ROOT ]; then
+	is_android=`expr $is_android + 1`
+	prefix_path2modules="/system/"
+	insmod_path="/system/bin/"
+	rmmod_path="/system/bin/"
+	path_to_calib=""
+	path_to_install="/system/etc/firmware/ti-connectivity/wl1271-nvs.bin"
+fi
+
 while [ "$i" -lt "$nbr_args" ]
 do
 	case $1 in
@@ -377,10 +387,6 @@ do
 			interactive=`expr $interactive + 1`
 			unload_wl12xx_driver
 		;;
-		-v)
-			interactive=`expr $interactive + 1`
-			echo -e "\tgo.sh version $go_version"
-		;;
 		-h)
 			interactive=`expr $interactive + 1`
 			usage
@@ -451,18 +457,6 @@ esac
 		echo -e "\t---===<<<((( WELCOME )))>>>===---\n"
 		echo -e "\t------------         ------------\n"
 	fi
-
-insmod_path=
-rmmod_path=
-
-if [ $ANDROID_ROOT ]; then
-	is_android=`expr $is_android + 1`
-	prefix_path2modules="/system/"
-	insmod_path="/system/bin/"
-	rmmod_path="/system/bin/"
-	path_to_calib=""
-	path_to_install="/system/etc/firmware/ti-connectivity/wl1271-nvs.bin"
-fi
 
 if [ "$stage_uno" -ne "0" ]; then
 	echo -e "+++ Mount the debugfs on /sys/kernel/debug"
