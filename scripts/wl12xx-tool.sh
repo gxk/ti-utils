@@ -106,19 +106,23 @@ manage_mac80211()
 			modprobe mac80211
 		fi
 	else
-		run_it=`cat /proc/modules | grep "cfg80211"`
-		if [ "$run_it" != "" ]; then
-			"$rmmod_path"rmmod cfg80211
-		fi
 		run_it=`cat /proc/modules | grep "mac80211"`
 		if [ "$run_it" != "" ]; then
 			"$rmmod_path"rmmod mac80211
+		fi
+		run_it=`cat /proc/modules | grep "cfg80211"`
+		if [ "$run_it" != "" ]; then
+			"$rmmod_path"rmmod cfg80211
 		fi
 		run_it=`cat /proc/modules | grep "compat"`
 		if [ "$run_it" != "" ]; then
 			"$rmmod_path"rmmod compat
 		fi
 		if [ "$param" -eq "1" ]; then
+			run_it=`cat /proc/modules | grep "compat"`
+			if [ "$run_it" == "" ]; then
+				"$insmode_path"insmod /system/lib/modules/compat.ko
+			fi
 			run_it=`cat /proc/modules | grep "cfg80211"`
 			if [ "$run_it" == "" ]; then
 				"$insmode_path"insmod /system/lib/modules/cfg80211.ko
@@ -126,10 +130,6 @@ manage_mac80211()
 			run_it=`cat /proc/modules | grep "mac80211"`
 			if [ "$run_it" == "" ]; then
 				"$insmode_path"insmod /system/lib/modules/mac80211.ko
-			fi
-			run_it=`cat /proc/modules | grep "compat"`
-			if [ "$run_it" == "" ]; then
-				"$insmode_path"insmod /system/lib/modules/compat.ko
 			fi
 		fi
 	fi
