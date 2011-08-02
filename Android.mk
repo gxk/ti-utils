@@ -24,11 +24,10 @@ LOCAL_MODULE := calibrator
 include $(BUILD_EXECUTABLE)
 
 include $(CLEAR_VARS)
-LOCAL_MODULE := scripts/wl12xx-tool.sh
+LOCAL_MODULE := wl12xx-tool.sh
 LOCAL_MODULE_TAGS := eng
-LOCAL_MODULE_PATH := $(local_target_dir)
-LOCAL_MODULE_CLASS := ETC
-LOCAL_SRC_FILES := $(LOCAL_MODULE)
+LOCAL_MODULE_CLASS := EXECUTABLES
+LOCAL_SRC_FILES := scripts/$(LOCAL_MODULE)
 include $(BUILD_PREBUILT)
 
 #
