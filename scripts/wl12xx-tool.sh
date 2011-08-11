@@ -1,12 +1,8 @@
 #!/bin/sh
 
-# Bootlevels
-#   1 - start only inetd			0000 0001
-#   2 - load mav80211				0000 0010
-#   4 - load driver				0000 0100
-#   8 - up dev, load wpa_supplicant		0000 1000
-#  32 - running calibration			0010 0000
-#  64 - 1-command calibration			0100 0000
+# PLT utility for TI's wireless driver wl12xx
+#
+# See README and COPYING for more details
 
 usage()
 {
@@ -19,7 +15,13 @@ usage()
 "[MAC address] - run calibration with 2 FEMs"
 	echo -e "\t\t\twhere the default value for install path is "
 	echo -e "\t\t\t/lib/firmware/ti-connectivity/wl1271-nvs.bin"
-	echo -e "\t\t-cont - run TxCont command sequence"
+	echo -e "\t\t-cont - run TxCont command sequence. " \
+"\n\t\t\tSet variable WL12XX_TUNE to provide parameters: <band> <channel>" \
+"\n\t\t\tSet variable WL12XX_TXCONT to provide parameters: <delay> <rate> " \
+"\n\t\t\t\t<size> <amount> <power> <seed> <pkt mode> <DC on/off> <gi> " \
+"\n\t\t\t\t<preamble> <type> <scramble> <clpc> <seq nbr mode> <mac>"
+	echo -e "\t\t-mac <NVS file> <MAC address> - update MAC address " \
+"value in NVS file"
 	echo -e "\t\t-d <value> - debuglevel, where"
 	echo -e "\t\t\t  -1      - shows current value
 \t\t\tDEBUG_NONE      = 0
@@ -43,7 +45,6 @@ usage()
 \t\t\tDEBUG_AP        = BIT(17)
 \t\t\tDEBUG_MASTER    = (DEBUG_ADHOC | DEBUG_AP)
 \t\t\tDEBUG_ALL       = ~0"
-	echo -e "\t\t-mac <NVS file> <MAC address> - set MAC address in NVS file"
 	echo -e "\t\t-ip [device number] [IP address] - set IP address for wlan device"
 	echo -e "\t\t-u - unload wireless driver"
 	echo -e "\t\t-ua - unload wireless framework (mac80211)"
@@ -223,9 +224,20 @@ cmd_power_mode()
 # get parameters: band, channel
 cmd_tune_channel()
 {
-	"$path_to_calib"calibrator wlan0 plt tune_channel $1 $2
-	if [ "$?" != "0" ]; then
-		echo -e "Fail to tune channel"
+	local params=$*
+
+	if [ "$WL12XX_TUNE" ]; then
+		params=$WL12XX_TUNE
+	fi
+
+	if [ "$params" ]; then
+		"$path_to_calib"calibrator wlan0 plt tune_channel $params
+		if [ "$?" != "0" ]; then
+			echo -e "Fail to tune channel"
+			return 1
+		fi
+	else
+		echo -e "Missing input parameters"
 		return 1
 	fi
 
@@ -276,9 +288,16 @@ cmd_tx_stop()
 
 cmd_tx_cont()
 {
-	"$path_to_calib"calibrator wlan0 plt tx_cont 2000 1 100 0 5000 0 3 0 0 0 0 0 1 0 00:22:33:90:64:31
-	if [ "$?" != "0" ]; then
-		echo -e "Fail to cont"
+	local params=$WL12XX_TXCONT
+
+	if [ "$WL12XX_TXCONT" ]; then
+		"$path_to_calib"calibrator wlan0 plt tx_cont $params
+		if [ "$?" != "0" ]; then
+			echo -e "Fail to run tx_cont"
+			return 1
+		fi
+	else
+		echo -e "Missing variable WL12XX_TXCONT"
 		return 1
 	fi
 
@@ -400,8 +419,8 @@ do
 			shift
 		;;
 		-cont)  # running TxCont procedure
+			interactive=`expr $interactive + 1`
 			bootlevel=16
-			nbr_args=`expr $nbr_args - 1`
 			shift
 		;;
 		-d)
@@ -448,11 +467,20 @@ do
 				shift
 				;;
 			esac
+			shift
 		;;
 		-ini)
 			have_path_to_ini=`expr $have_path_to_ini + 1`
 			path_to_ini=$2
 			nbr_args=`expr $nbr_args - 1`
+			shift
+		;;
+		-tune)
+			interactive=`expr $interactive + 1`
+			cmd_tune_channel
+			if [ "$?" != "0" ]; then
+				exit 1
+			fi
 			shift
 		;;
 		-u)
@@ -586,20 +614,17 @@ if [ "$stage_sedici" -ne "0" ]; then
 		exit 1
 	fi
 
-	cmd_tune_channel 0 7
+	# gets parameter from environment variable WL12XX_TUNE
+	cmd_tune_channel
 	if [ "$?" != "0" ]; then
+		cmd_power_mode off
 		exit 1
 	fi
 
+	# gets parameter from environment variable WL12XX_TXCONT
 	cmd_tx_cont
-	if [ "$?" != "0" ]; then
-		exit 1
-	fi
 
 	cmd_tx_stop
-	if [ "$?" != "0" ]; then
-		exit 1
-	fi
 
 	cmd_power_mode off
 	if [ "$?" != "0" ]; then
