@@ -51,6 +51,92 @@ usage()
 	echo -e "\t\t-h - get this help"
 }
 
+get_chip_id()
+{
+	local run_it=
+
+	run_it=`"$path_to_calib"calibrator get hw_version $1`
+	if [ "$run_it" == "" ]; then
+		echo -e "Fail to get HW version for $1"
+		return 1
+	fi
+
+	#echo -e "${run_it:0:4}"
+	if [ "${run_it:0:4}" -eq "0503" ]; then
+		chip_arch="128x"
+	fi
+
+	return 0
+}
+
+get_driver_info()
+{
+	local run_it=
+
+	run_it=`"$path_to_calib"calibrator get drv_info $1`
+	if [ "$run_it" == "" ]; then
+		echo -e "Fail to get driver info for $1"
+		return 1
+	fi
+
+	echo -e "$run_it"
+}
+
+prepare_reference_nvs_file()
+{
+	local ret=
+	echo -e "+++ Create reference NVS with INI $path_to_ini"
+
+	ret=`"$path_to_calib"calibrator set ref_nvs $path_to_ini`
+	if [ "$ret" == "" ]; then
+		echo -e "Fail to prepare reference NVS"
+		return 1
+	fi
+
+	case ${ret:0:4} in
+		"0503") chip_arch="128x"
+			have_arch=`expr $have_arch + 1`
+		;;
+		"0403")
+			have_arch=`expr $have_arch + 1`
+		;;
+		*)
+		   echo -e "Unknown chip architecture"
+		   return 1
+		;;
+	esac
+
+	return 0
+}
+
+prepare_final_nvs_file()
+{
+	if [ "$chip_arch" == "127x" ]; then
+		nvs_full_path=$path_to_install$nvs_127x_filename
+	else
+		nvs_full_path=$path_to_install$nvs_128x_filename
+	fi
+
+	rm -rf $path_to_install$nvs_link_filename
+
+	if [ "$is_android" -eq "0" ]; then
+		run_it=`cp -f ./new-nvs.bin $nvs_full_path`
+	else
+		run_it=`cat ./new-nvs.bin > $nvs_full_path`
+	fi
+
+	here=`pwd`
+	cd $path_to_install
+	if [ "$chip_arch" == "127x" ]; then
+		ln -s $nvs_127x_filename $nvs_link_filename
+	else
+		ln -s $nvs_128x_filename $nvs_link_filename
+	fi
+	cd $here
+
+	return 0
+}
+
 set_dynamic_debug()
 {
 	if [ ! -e /sys/module/wl12xx/parameters/debug_level ]; then
@@ -89,37 +175,48 @@ mount_debugfs()
 	fi
 }
 
-# parameter - 0-unload, 1-load
+# parameter - 0-unload, 1-reload, 2-load
 manage_mac80211()
 {
 	local param=$1
 
-	if [ "$param" -eq "1" ]; then
-		echo -e "+++ Reload mac80211 framework"
-	else
-		echo -e "+++ Unload mac80211 framework"
-	fi
+	case $param in
+		0) echo -e "+++ Unload mac80211 framework"
+		;;
+		1) echo -e "+++ Reload mac80211 framework"
+		;;
+		2) echo -e "+++ Load mac80211 framework"
+		;;
+	esac
 
 	if [ "$is_android" -eq "0" ]; then
 		depmod -a
-		modprobe -r mac80211
-		if [ "$param" -eq "1" ]; then
+		if [ "$param" -lt "2" ]; then
+			modprobe -r mac80211
+		fi
+		if [ "$param" -gt "0" ]; then
 			modprobe mac80211
+			if [ "$?" != "0" ]; then
+				echo -e "Fail to load mac80211"
+				return 1
+			fi
 		fi
 	else
-		run_it=`cat /proc/modules | grep "mac80211"`
-		if [ "$run_it" != "" ]; then
-			"$rmmod_path"rmmod mac80211
+		if [ "$param" -lt "2" ]; then
+			run_it=`cat /proc/modules | grep "mac80211"`
+			if [ "$run_it" != "" ]; then
+				"$rmmod_path"rmmod mac80211
+			fi
+			run_it=`cat /proc/modules | grep "cfg80211"`
+			if [ "$run_it" != "" ]; then
+				"$rmmod_path"rmmod cfg80211
+			fi
+			run_it=`cat /proc/modules | grep "compat"`
+			if [ "$run_it" != "" ]; then
+				"$rmmod_path"rmmod compat
+			fi
 		fi
-		run_it=`cat /proc/modules | grep "cfg80211"`
-		if [ "$run_it" != "" ]; then
-			"$rmmod_path"rmmod cfg80211
-		fi
-		run_it=`cat /proc/modules | grep "compat"`
-		if [ "$run_it" != "" ]; then
-			"$rmmod_path"rmmod compat
-		fi
-		if [ "$param" -eq "1" ]; then
+		if [ "$param" -gt "1" ]; then
 			run_it=`cat /proc/modules | grep "compat"`
 			if [ "$run_it" == "" ]; then
 				"$insmode_path"insmod /system/lib/modules/compat.ko
@@ -259,13 +356,13 @@ cmd_tx_bip()
 {
 	run_it=`cat $path_to_ini | grep "RxTraceInsertionLoss_5G"`
 	if [ "$run_it" != "" ]; then
-		"$path_to_calib"calibrator wlan0 plt tx_bip 1 1 1 1 1 1 1 1 $path_to_install
+		"$path_to_calib"calibrator wlan0 plt tx_bip 1 1 1 1 1 1 1 1 $nvs_full_path
 		if [ "$?" != "0" ]; then
 			echo -e "Fail to calibrate"
 			return 1
 		fi
 	else
-		"$path_to_calib"calibrator wlan0 plt tx_bip 1 0 0 0 0 0 0 0 $path_to_install
+		"$path_to_calib"calibrator wlan0 plt tx_bip 1 0 0 0 0 0 0 0 $nvs_full_path
 		if [ "$?" != "0" ]; then
 			echo -e "Fail to calibrate"
 			return 1
@@ -352,13 +449,19 @@ have_path_to_ini=0
 path_to_ini=""
 path_to_ini2=""
 have_path_to_install=0
-path_to_install="/lib/firmware/ti-connectivity/wl1271-nvs.bin"
+path_to_install="/lib/firmware/ti-connectivity/"
 is_android=0
 path_to_calib="./"
 interactive=0
 insmod_path=
 rmmod_path=
 support_nvs20=0
+nvs_link_filename="wl12xx-nvs.bin"
+nvs_127x_filename="wl127x-nvs.bin"
+nvs_128x_filename="wl128x-nvs.bin"
+nvs_full_path=
+chip_arch="127x"
+have_arch=0
 
 if [ $ANDROID_ROOT ]; then
 	is_android=`expr $is_android + 1`
@@ -366,7 +469,7 @@ if [ $ANDROID_ROOT ]; then
 	insmod_path="/system/bin/"
 	rmmod_path="/system/bin/"
 	path_to_calib=""
-	path_to_install="/system/etc/firmware/ti-connectivity/wl1271-nvs.bin"
+	path_to_install="/system/etc/firmware/ti-connectivity/"
 fi
 
 while [ "$i" -lt "$nbr_args" ]
@@ -475,6 +578,17 @@ do
 			nbr_args=`expr $nbr_args - 1`
 			shift
 		;;
+		-info)
+			dev_name="wlan0"
+			if [ "$nbr_args" -eq "2" ]; then
+				nbr_args=`expr $nbr_args - 1`
+				dev_name=$2
+				shift
+			fi
+			interactive=`expr $interactive + 1`
+			get_driver_info $dev_name
+			shift
+		;;
 		-tune)
 			interactive=`expr $interactive + 1`
 			cmd_tune_channel
@@ -492,6 +606,17 @@ do
 			interactive=`expr $interactive + 1`
 			unload_wl12xx_driver
 			manage_mac80211 0
+			shift
+		;;
+		-arch)
+			dev_name="wlan0"
+			if [ "$nbr_args" -eq "2" ]; then
+				nbr_args=`expr $nbr_args - 1`
+				dev_name=$2
+				shift
+			fi
+			interactive=`expr $interactive + 1`
+			get_chip_id $dev_name
 			shift
 		;;
 		-h)
@@ -651,7 +776,7 @@ if [ "$stage_trentadue" -ne "0" ]; then
 	echo -e "+++ Create reference NVS with $path_to_ini $path_to_ini2"
 	"$path_to_calib"calibrator set ref_nvs2 $path_to_ini $path_to_ini2
 	if [ "$?" != "0" ]; then
-		echo -e "Fail to tune channel"
+		echo -e "Fail to ..."
 		exit 1
 	fi
 
@@ -659,16 +784,13 @@ if [ "$stage_trentadue" -ne "0" ]; then
 	echo -e "+++ Set Auto FEM detection to auto"
 	"$path_to_calib"calibrator set autofem 1 ./new-nvs.bin
 	if [ "$?" != "0" ]; then
-		echo -e "Fail to tune channel"
+		echo -e "Fail to set auto"
 		exit 1
 	fi
 
 	# 4. copy NVS to proper place
-	if [ "$is_android" -eq "0" ]; then
-		run_it=`cp -f ./new-nvs.bin $path_to_install`
-	else
-		run_it=`cat ./new-nvs.bin > $path_to_install`
-	fi
+	echo -e "+++ Copy reference NVS file to $path_to_install"
+	prepare_final_nvs_file
 
 	# 5. load wl12xx kernel modules
 	load_wl12xx_driver
@@ -717,11 +839,7 @@ if [ "$stage_trentadue" -ne "0" ]; then
 
 	# 9. copy calibrated NVS file to proper place
 	echo -e "+++ Copy calibrated NVS file to $path_to_install"
-	if [ "$is_android" -eq "1" ]; then
-		run_it=`cat ./new-nvs.bin > $path_to_install`
-	else
-		run_it=`cp -f ./new-nvs.bin $path_to_install`
-	fi
+	prepare_final_nvs_file
 
 	# 10. load wl12xx kernel modules
 	manage_mac80211 1
@@ -742,33 +860,37 @@ if [ "$stage_sessanta_quattro" -ne "0" ]; then
 		exit 1
 	fi
 
+	# Stop GUI if run under Android
 	android_stop_gui
 
-	# 1. unload wl12xx kernel modules
-	unload_wl12xx_driver
-	manage_mac80211 1
+	# To insure mac80211 is loaded
+	manage_mac80211 2
 
-	# 2. create reference NVS file with default MAC
-	echo -e "+++ Create reference NVS with INI $path_to_ini"
-	"$path_to_calib"calibrator set ref_nvs $path_to_ini
+	# Create reference NVS file with default MAC
+	prepare_reference_nvs_file
 	if [ "$?" != "0" ]; then
-		echo -e "Fail to tune channel"
 		exit 1
 	fi
 
-	# 3. copy NVS to proper place
-	echo -e "+++ Copy reference NVS file to $path_to_install"
-	if [ "$is_android" -eq "1" ]; then
-		run_it=`cat ./new-nvs.bin > $path_to_install`
+	# Copy NVS to proper place
+	prepare_final_nvs_file
+	if [ "$?" != "0" ]; then
+		echo -e "Fail to prepare reference NVS file"
+		exit 1
 	else
-		run_it=`cp -f ./new-nvs.bin $path_to_install`
+		echo -e "+++ Copy reference NVS file to $path_to_install"
 	fi
 
-	# 4. load wl12xx kernel modules
-	load_wl12xx_driver
+	unload_wl12xx_driver
 
-	# 5. calibrate
-	echo -e "+++ Calibrate"
+	# Reload mac80211 insures name phy0
+	manage_mac80211 1
+
+	load_wl12xx_driver
+	if [ "$?" != "0" ]; then
+		exit 1
+	fi
+
 	cmd_power_mode on
 	if [ "$?" != "0" ]; then
 		exit 1
@@ -799,25 +921,25 @@ if [ "$stage_sessanta_quattro" -ne "0" ]; then
 		exit 1
 	fi
 
-	# 6. unload wl12xx kernel modules
 	unload_wl12xx_driver
 
-	# 7. update MAC address in the NVS file
+	# Update MAC address in the NVS file
 	echo -e "+++ Update MAC address in the NVS file"
 	cmd_set_mac_address ./new-nvs.bin $mac_addr
 	if [ "$?" != "0" ]; then
 		exit 1
 	fi
 
-	# 8. copy calibrated NVS file to proper place
-	echo -e "+++ Copy calibrated NVS file to $path_to_install"
-	if [ "$is_android" -eq "1" ]; then
-		run_it=`cat ./new-nvs.bin > $path_to_install`
+	# Copy calibrated NVS file to proper place
+	prepare_final_nvs_file
+	if [ "$?" != "0" ]; then
+		echo -e "Fail to prepare calibrated NVS file"
+		exit 1
 	else
-		run_it=`cp -f ./new-nvs.bin $path_to_install`
+		echo -e "+++ Copy calibrated NVS file to $path_to_install"
 	fi
 
-	# 9. load wl12xx kernel modules
+	# Load wl12xx kernel modules
 	manage_mac80211 1
 	load_wl12xx_driver
 
