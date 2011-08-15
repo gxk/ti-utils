@@ -234,11 +234,9 @@ static int set_ref_nvs(struct nl80211_state *state, struct nl_cb *cb,
 		fprintf(stderr, "Fail to create reference NVS file\n");
 		return 1;
 	}
-#if 0
-	printf("\n\tThe NVS file (%s) is ready\n\tCopy it to %s and "
-		"reboot the system\n\n",
-		NEW_NVS_NAME, CURRENT_NVS_NAME);
-#endif
+
+	printf("%04X", cmn.arch);
+
 	return 0;
 }
 
@@ -274,11 +272,9 @@ static int set_ref_nvs2(struct nl80211_state *state, struct nl_cb *cb,
 		fprintf(stderr, "Fail to create reference NVS file\n");
 		return 1;
 	}
-#if 0
-	printf("\n\tThe NVS file (%s) is ready\n\tCopy it to %s and "
-		"reboot the system\n\n",
-		NEW_NVS_NAME, CURRENT_NVS_NAME);
-#endif
+
+	printf("%04X", cmn.arch);
+
 	return 0;
 }
 
@@ -434,4 +430,27 @@ static int get_drv_info(struct nl80211_state *state, struct nl_cb *cb,
 
 COMMAND(get, drv_info, "<device name>", 0, 0, CIB_NONE, get_drv_info,
 	"Get driver information: PG version");
+
+static int get_hw_version(struct nl80211_state *state, struct nl_cb *cb,
+			  struct nl_msg *msg, int argc, char **argv)
+{
+	int ret, chip_id = 0;
+
+	argc -= 2;
+	argv += 2;
+
+	if (argc < 1) {
+		fprintf(stderr, "Missing argument (device name)\n");
+		return 2;
+	}
+
+	ret = do_get_drv_info(argv[0], &chip_id);
+	if (!ret)
+		printf("%08X\n", chip_id);
+
+	return ret;
+}
+
+COMMAND(get, hw_version, "<device name>", 0, 0, CIB_NONE, get_hw_version,
+	"Get HW version (chip id)");
 
